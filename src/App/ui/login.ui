@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>MainWindow</class>
- <widget class="QMainWindow" name="MainWindow">
+ <class>LoginWindow</class>
+ <widget class="QMainWindow" name="LoginWindow">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -26,39 +26,20 @@
     </property>
     <property name="geometry">
      <rect>
-      <x>160</x>
-      <y>90</y>
-      <width>111</width>
-      <height>61</height>
+      <x>180</x>
+      <y>110</y>
+      <width>91</width>
+      <height>31</height>
      </rect>
     </property>
     <property name="font">
      <font>
       <family>AcadEref</family>
-      <pointsize>20</pointsize>
+      <pointsize>12</pointsize>
      </font>
     </property>
     <property name="text">
      <string>用户名：</string>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label2">
-    <property name="geometry">
-     <rect>
-      <x>160</x>
-      <y>150</y>
-      <width>101</width>
-      <height>61</height>
-     </rect>
-    </property>
-    <property name="font">
-     <font>
-      <family>AcadEref</family>
-      <pointsize>20</pointsize>
-     </font>
-    </property>
-    <property name="text">
-     <string>密码：</string>
     </property>
    </widget>
    <widget class="QLineEdit" name="username_input">
@@ -143,7 +124,7 @@
    <widget class="QPushButton" name="login_button">
     <property name="geometry">
      <rect>
-      <x>270</x>
+      <x>200</x>
       <y>300</y>
       <width>111</width>
       <height>51</height>
@@ -151,6 +132,64 @@
     </property>
     <property name="text">
      <string>登录</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="exit_button">
+    <property name="geometry">
+     <rect>
+      <x>330</x>
+      <y>300</y>
+      <width>111</width>
+      <height>51</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>退出</string>
+    </property>
+   </widget>
+   <widget class="QLabel" name="label2">
+    <property name="enabled">
+     <bool>true</bool>
+    </property>
+    <property name="geometry">
+     <rect>
+      <x>180</x>
+      <y>170</y>
+      <width>91</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <family>AcadEref</family>
+      <pointsize>12</pointsize>
+     </font>
+    </property>
+    <property name="text">
+     <string>密码：</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="password_visualable">
+    <property name="geometry">
+     <rect>
+      <x>500</x>
+      <y>170</y>
+      <width>31</width>
+      <height>31</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>PushButton</string>
+    </property>
+    <property name="icon">
+     <iconset>
+      <normaloff>../../../resource/img/eye.svg</normaloff>../../../resource/img/eye.svg</iconset>
+    </property>
+    <property name="iconSize">
+     <size>
+      <width>31</width>
+      <height>31</height>
+     </size>
     </property>
    </widget>
   </widget>

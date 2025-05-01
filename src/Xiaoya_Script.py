@@ -15,16 +15,16 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.edge.service import Service
 from selenium.common.exceptions import WebDriverException
 
-from src.MyDriver import MyDriver
+from MyDriver import MyDriver
 
 
 class Xiaoya_scrpit():
-    def __init__(self,working_path,output:scrolledtext.ScrolledText):
+    def __init__(self,working_path=os.getcwd(),output:scrolledtext.ScrolledText=None):
         self.HomeworkDict = {}
         self.output = output
         self.URL = r'https://whut.ai-augmented.com/app/jx-web/mycourse'
         self.working_path = working_path
-
+        self.driver = None
 
         self.ansi_color = {
             # Reset
@@ -140,6 +140,8 @@ class Xiaoya_scrpit():
         解析带有 ANSI 转义符的文本并在 GUI 输出彩色文本。
         """
         print(message)
+        if self.output is None:
+            return
         # ANSI 转义符的正则表达式
         ansi_pattern = re.compile(r'\033\[(\d+)m')
 
@@ -161,13 +163,11 @@ class Xiaoya_scrpit():
         self.output.see(tk.END)
 
 
-    def login(self,username,password,not_show_page):
+    def login(self,username,password,not_show_page,url=r'https://whut.ai-augmented.com/app/jx-web/mycourse'):
         # 先初始化driver,存储在对象中
         self.driver = MyDriver(working_path=self.working_path,not_show_page=not_show_page).driver
         # 获取wait和url
         wait = WebDriverWait(self.driver, 10)
-        url = r'https://whut.ai-augmented.com/app/jx-web/mycourse'
-
 
         self.write_to_output(f'正在登录中……')
         # 打开页面
@@ -188,6 +188,14 @@ class Xiaoya_scrpit():
         # 最大化窗口
         self.driver.maximize_window()
 
+        # # 先点击一下手机/账户登录
+        # AccountPasswordLogin = wait.until(
+        #     EC.element_to_be_clickable((By.ID,'rc-tabs-0-tab-AccountPasswordLogin'))
+        # )
+        # AccountPasswordLogin.click()
+
+
+
         # 通过 ID 定位到 "统一身份认证" 标签项
         unified_identity_tab = wait.until(
             EC.element_to_be_clickable((By.ID, 'rc-tabs-0-tab-UnifiedIdentity'))
@@ -195,9 +203,10 @@ class Xiaoya_scrpit():
         unified_identity_tab.click()
 
 
+
         # 通过name属性定位按钮
         login_button = wait.until(
-            EC.element_to_be_clickable((By.NAME, 'password'))
+            EC.element_to_be_clickable((By.CSS_SELECTOR, 'button.css-lxdosa > span'))
         )
         login_button.click()
 
@@ -242,23 +251,22 @@ class Xiaoya_scrpit():
         page_num = 0
         course_num = 0
 
+        # 找到课程页码，并点击
+        wait.until(
+            EC.presence_of_element_located((By.CSS_SELECTOR,'.ant-pagination-item'))
+        )
+        pages = self.driver.find_elements(by=By.CSS_SELECTOR,value='.ant-pagination-item')
+
+        # 找到当前页显示的所有课程，返回为列表
+        wait.until(
+            EC.presence_of_element_located((By.CSS_SELECTOR,'.card_list'))
+        )
+        courses = self.driver.find_elements(by=By.CSS_SELECTOR,value='.aia_course_card > .ta_mainInfo > span:nth-child(1)')
 
         while True:
-            # 找到课程页码，并点击
-            wait.until(
-                EC.presence_of_element_located((By.CSS_SELECTOR,'.ant-pagination-item'))
-            )
-            pages = self.driver.find_elements(by=By.CSS_SELECTOR,value='.ant-pagination-item')
-            pages[page_num].click()
-            # 找到当前页显示的所有课程，返回为列表
-            wait.until(
-                EC.presence_of_element_located((By.CSS_SELECTOR,'.card_list'))
-            )
-            courses = self.driver.find_elements(by=By.CSS_SELECTOR,value='.aia_course_card > .ta_mainInfo > span:nth-child(1)')
             # 进入课程界面
             courses[course_num].click()
-
-
+            # 等待课程名字出现
             NameTag = wait.until(
                 EC.presence_of_element_located((By.CSS_SELECTOR,'span.group_name'))
                 )
@@ -273,12 +281,16 @@ class Xiaoya_scrpit():
                 self.write_to_output(f'无效的指令')
 
             # 回到主界面
-            self.driver.get(url=self.URL)
+            wait.until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR,'.aia_home'))
+            ).click()
 
             course_num+=1
             if course_num==8:   
                 course_num = 0
                 page_num+=1
+                pages[page_num].click()
+                courses = self.driver.find_elements(by=By.CSS_SELECTOR,value='.aia_course_card > .ta_mainInfo > span:nth-child(1)')
             # 当前课程指向超过本页课程数量，则跳出循环
             if page_num>=len(pages) or course_num>=len(courses):
                 break  
@@ -291,6 +303,7 @@ class Xiaoya_scrpit():
         '''
         wait = WebDriverWait(self.driver, 10)
         flag = True
+        res = []
 
         # 点击作业任务,可能需要先点击展开
         try:
@@ -348,9 +361,12 @@ class Xiaoya_scrpit():
                 end_time = task.find_element(by=By.CSS_SELECTOR,value='td:nth-of-type(8)').text
                 # 输出信息
                 self.write_to_output(f"\t{self.ansi_color['blue_font']}{name}  {end_time}{self.ansi_color['reset_font']}")
+                res.append((name,end_time))
                 # 添加到字典
                 self.HomeworkDict[CourseName] = self.HomeworkDict.get(CourseName,[])+[name]
                 flag = False
+        
+        return res
 
 
 
@@ -405,62 +421,60 @@ class Xiaoya_scrpit():
             name = job["name"]
             is_task = job["is_task"]
 
-        
-            if is_task:     # 是任务的话
-                if job_type == 9:  # 9=视频
-                    url = f"{endpoint}resource/task/studenFinishInfo?group_id={group_id}&node_id={node_id}"
-                    assign_id = requests.get(url=url, headers=headers).json()[
-                        "data"]["assign_id"]
 
-                    url = f"{endpoint}resource/queryResource?node_id={node_id}"
-                    result = requests.get(url=url, headers=headers).json()["data"]
-                    quote_id = result["quote_id"]
-                    media_id = result["resource"]["id"]
-                    duration = result["resource"]["duration"]
-                    task_id = result["task_id"]
+            if job_type == 9:  # 9=视频
+                url = f"{endpoint}resource/task/studenFinishInfo?group_id={group_id}&node_id={node_id}"
+                assign_id = requests.get(url=url, headers=headers).json()[
+                    "data"]["assign_id"]
 
-                    data = {
-                        "video_id": "0000000000000000000",  # 似乎不重要
-                        "played": duration,
-                        "media_type": 1,
-                        "duration": duration,
-                        "watched_duration": duration
-                    }
-                    url = f"{endpoint}vod/duration/{quote_id}"  # 提交视频观看时长
-                    result = requests.post(url=url, headers=headers, json=data)
+                url = f"{endpoint}resource/queryResource?node_id={node_id}"
+                result = requests.get(url=url, headers=headers).json()["data"]
+                quote_id = result["quote_id"]
+                media_id = result["resource"]["id"]
+                duration = result["resource"]["duration"]
+                task_id = result["task_id"]
 
-                    url = f"{endpoint}vod/checkTaskStatus"  # 完成视频任务
-                    data = {
-                        "group_id": group_id,
-                        "media_id": media_id,
-                        "task_id": task_id,
-                        "assign_id": assign_id
-                    }
+                data = {
+                    "video_id": "0000000000000000000",  # 似乎不重要
+                    "played": duration,
+                    "media_type": 1,
+                    "duration": duration,
+                    "watched_duration": duration
+                }
+                url = f"{endpoint}vod/duration/{quote_id}"  # 提交视频观看时长
+                result = requests.post(url=url, headers=headers, json=data)
 
-                    result = requests.post(url=url, headers=headers, json=data).json()
-                    if result['success']:
-                        self.write_to_output(f"{name}\n\t{self.ansi_color['green_font']}成功{result}{self.ansi_color['reset_font']}")
-                    else:
-                        self.write_to_output(f"{name}\n\t{self.ansi_color['red_font']}失败{result}{self.ansi_color['reset_font']}")
+                url = f"{endpoint}vod/checkTaskStatus"  # 完成视频任务
+                data = {
+                    "group_id": group_id,
+                    "media_id": media_id,
+                    "task_id": task_id,
+                    "assign_id": assign_id
+                }
 
-                elif job_type == 6:  # 6=文档
-                    task_id = job["task_id"]
-
-                    url = f"{endpoint}resource/finishActivity"
-                    data = {
-                        "group_id": group_id,
-                        "task_id": task_id,
-                        "node_id": node_id
-                    }
-                    result = requests.post(url=url, headers=headers, json=data).json()
-                    if result['success']:
-                        self.write_to_output(f"{name}\n\t{self.ansi_color['green_font']}成功{result}{self.ansi_color['reset_font']}")
-                    else:
-                        self.write_to_output(f"{name}\n\t{self.ansi_color['red_font']}失败{result}{self.ansi_color['reset_font']}")
-
-
+                result = requests.post(url=url, headers=headers, json=data).json()
+                if result['success']:
+                    self.write_to_output(f"{name}\n\t{self.ansi_color['green_font']}成功{result}{self.ansi_color['reset_font']}")
                 else:
-                    self.write_to_output(f"{name}\n\t{self.ansi_color['magenta_font']}未知类型，跳过{self.ansi_color['reset_font']}")
-            else:           #不是任务（比如老师上传的ppt，视频，但没布置成作业的
-                pass
+                    self.write_to_output(f"{name}\n\t{self.ansi_color['red_font']}失败{result}{self.ansi_color['reset_font']}")
+
+            elif job_type == 6:  # 6=文档
+                task_id = job["task_id"]
+
+                url = f"{endpoint}resource/finishActivity"
+                data = {
+                    "group_id": group_id,
+                    "task_id": task_id,
+                    "node_id": node_id
+                }
+                result = requests.post(url=url, headers=headers, json=data).json()
+                if result['success']:
+                    self.write_to_output(f"{name}\n\t{self.ansi_color['green_font']}成功{result}{self.ansi_color['reset_font']}")
+                else:
+                    self.write_to_output(f"{name}\n\t{self.ansi_color['red_font']}失败{result}{self.ansi_color['reset_font']}")
+
+
+            else:
+                self.write_to_output(f"{name}\n\t{self.ansi_color['magenta_font']}未知类型，跳过{self.ansi_color['reset_font']}")
+
 

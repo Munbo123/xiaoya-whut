@@ -8,8 +8,8 @@ import keyring
 import tkinter as tk
 from tkinter import scrolledtext
 
-from src.User import User
-from src.Xiaoya_Script import Xiaoya_scrpit
+from User import User
+from Xiaoya_Script import Xiaoya_scrpit
 
 
 
@@ -129,8 +129,12 @@ class App:
         
         self.xiaoya = Xiaoya_scrpit(working_path=self.working_path,output=self.output)
         # 登录,开新的线程，防止阻塞主界面的形成
-        threading.Thread(target=self.xiaoya.login, args=(self.current_user.username,self.current_user.password,self.current_user.show_page)).start()
-        
+        try:
+            threading.Thread(target=self.xiaoya.login, args=(self.current_user.username,self.current_user.password,self.current_user.show_page)).start()
+        except Exception as e:
+            self.output.insert(tk.END, "登录失败，请检查网络是否正常\n")
+            self.output.insert(tk.END, e)
+            return
 
         # 创建一个标签提示用户
         self.label_instruction = tk.Label(self.main_window, text="请选择要完成的指令")
@@ -159,5 +163,5 @@ class App:
 
 
 if __name__ == '__main__':
-    app = App()
+    app = App(working_path=os.getcwd(),service_name='Xiaoya')
 

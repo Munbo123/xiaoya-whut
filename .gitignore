@@ -1,4 +1,6 @@
 /.venv/
-/__pycache__/
+**/__pycache__/
 /dist/
-test*.py
+**/test*.py
+/test/
+/.vscode/
