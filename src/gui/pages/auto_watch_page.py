@@ -220,40 +220,7 @@ class AutoWatchPage(QWidget):
         line.setFrameShadow(QFrame.Sunken)
         main_layout.addWidget(line)
         
-        # 登录信息区域
-        login_group = QGroupBox("登录信息")
-        login_layout = QHBoxLayout(login_group)
-        
-        self.username_edit = QLineEdit()
-        self.username_edit.setPlaceholderText("用户名/学号")
-        self.password_edit = QLineEdit()
-        self.password_edit.setPlaceholderText("密码")
-        self.password_edit.setEchoMode(QLineEdit.Password)
-        self.login_btn = QPushButton("登录")
-        
-        login_layout.addWidget(QLabel("用户名:"))
-        login_layout.addWidget(self.username_edit)
-        login_layout.addWidget(QLabel("密码:"))
-        login_layout.addWidget(self.password_edit)
-        login_layout.addWidget(self.login_btn)
-        
-        main_layout.addWidget(login_group)
-        
-        # 添加堆叠小部件，用于在登录前后显示不同的内容
-        self.stacked_widget = QStackedWidget()
-        
-        # 登录前提示页
-        self.login_prompt_page = QWidget()
-        prompt_layout = QVBoxLayout(self.login_prompt_page)
-        prompt_label = QLabel("请先登录以查看您的课程")
-        prompt_label.setAlignment(Qt.AlignCenter)
-        prompt_label.setStyleSheet("font-size: 16px; color: #666;")
-        prompt_layout.addWidget(prompt_label)
-        
-        # 添加登录前页面到堆栈
-        self.stacked_widget.addWidget(self.login_prompt_page)
-        
-        # 课程卡片网格视图（复用下载页面的逻辑）
+        # 课程卡片网格视图 - 直接显示，不再需要登录
         from src.gui.pages.download_page import CourseCardGrid
         self.course_grid = CourseCardGrid()
         
@@ -261,29 +228,8 @@ class AutoWatchPage(QWidget):
         self.course_grid.courseSelected.connect(self.on_course_selected)
         self.course_grid.courseActionTriggered.connect(self.on_course_action)
         
-        # 添加课程网格到堆栈
-        self.stacked_widget.addWidget(self.course_grid)
-        
-        # 默认显示登录提示页
-        self.stacked_widget.setCurrentIndex(0)
-        
-        main_layout.addWidget(self.stacked_widget)
-        
-        # 连接信号
-        self.login_btn.clicked.connect(self.login)
-    
-    def login(self):
-        """登录处理函数"""
-        username = self.username_edit.text()
-        password = self.password_edit.text()
-        
-        if not username or not password:
-            # 如果没有输入用户名或密码，显示提示
-            return
-        
-        # 实际项目中这里会有真正的登录逻辑
-        # 登录成功后切换到课程网格视图
-        self.stacked_widget.setCurrentIndex(1)
+        # 添加课程网格到主布局
+        main_layout.addWidget(self.course_grid)
     
     @Slot(str)
     def on_course_selected(self, course_id):

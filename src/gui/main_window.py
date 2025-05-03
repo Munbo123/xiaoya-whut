@@ -86,15 +86,23 @@ class MainWindow(QMainWindow):
     def paintEvent(self, event):
         """自定义绘制事件，绘制高质量圆角"""
         if not self.isMaximized():
-            painter = QPainter(self)
-            painter.setRenderHint(QPainter.Antialiasing)  # 启用抗锯齿
-            painter.setBrush(Qt.white)  # 设置填充色
-            painter.setPen(Qt.NoPen)  # 无边框
-            
-            # 绘制圆角矩形
-            rect = self.rect()
-            painter.drawRoundedRect(rect, 8, 8)
+            # 只有在非最大化状态下才进行自定义绘制
+            try:
+                painter = QPainter(self)
+                painter.begin(self)  # 显式开始绘图
+                painter.setRenderHint(QPainter.Antialiasing)  # 启用抗锯齿
+                painter.setBrush(Qt.white)  # 设置填充色
+                painter.setPen(Qt.NoPen)  # 无边框
+                
+                # 绘制圆角矩形
+                rect = self.rect()
+                painter.drawRoundedRect(rect, 8, 8)
+                painter.end()  # 显式结束绘图
+            except Exception:
+                # 如果绘图过程中出错，避免应用崩溃
+                pass
         else:
+            # 最大化状态下使用默认绘制
             super().paintEvent(event)
     
     def resizeEvent(self, event):

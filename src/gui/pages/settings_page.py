@@ -378,8 +378,9 @@ class SettingsPage(QWidget):
                 background: #F0F0F0;
                 color: #333;
                 border: none;
-                padding: 10px 20px;
+                padding: 15px 20px;  /* 增加垂直内边距从10px到15px */
                 font-size: 13px;
+                margin-top: 2px;     /* 添加顶部外边距 */
             }
             QTabBar::tab:selected {
                 background: #F8F8F8;

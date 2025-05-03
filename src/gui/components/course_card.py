@@ -54,7 +54,7 @@ class CourseCard(QFrame):
             }
             CourseCard:hover {
                 border-color: #00a0e9;
-                box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+                border-width: 1px;
             }
         """)
         
