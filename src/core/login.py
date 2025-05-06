@@ -68,17 +68,17 @@ class XiaoyaLoginManager:
             public_key = self._get_rsa_public_key()
             
             # 步骤5: 加密用户名密码并提交登录表单
-            ticket, cas_login_url = self._submit_login_form(
+            cas_login_url = self._submit_login_form(
                 login_url, form_params, 
                 self._encrypt_with_rsa(public_key, username),
                 self._encrypt_with_rsa(public_key, password)
             )
             
             # 步骤6-7: 访问CAS登录URL获取state
-            state, redirect_url = self._process_cas_login(cas_login_url)
+            redirect_url = self._process_cas_login(cas_login_url)
             
             # 步骤8-9: 获取授权码
-            code, callback_url = self._get_authorization_code(redirect_url)
+            callback_url = self._get_authorization_code(redirect_url)
             
             # 步骤10: 完成最终回调
             self._complete_final_callback(callback_url)
@@ -314,31 +314,16 @@ class XiaoyaLoginManager:
                 raise Exception(error_msg)
                 
             logger.debug(f"登录重定向URL: {location}")
-            
-            # 从重定向URL中提取ticket
-            query_params = self._parse_query_params(location)
-            ticket = query_params.get('ticket', [None])[0]
-            if not ticket:
-                # 尝试通过正则表达式从URL中提取ticket
-                ticket_match = re.search(r'ticket=([^&]+)', location)
-                if ticket_match:
-                    ticket = ticket_match.group(1)
-                else:
-                    error_msg = "无法从重定向URL中提取ticket"
-                    logger.error(error_msg)
-                    raise Exception(error_msg)
-            
-            logger.info(f"成功提取登录ticket: {ticket[:10]}...")
-            
-            # 返回ticket和包含ticket的完整URL，用于后续请求
-            return ticket, location
+        
+            # 返回完整URL，用于后续请求
+            return location
             
         except requests.exceptions.RequestException as e:
             error_msg = f"提交登录表单请求异常: {str(e)}"
             logger.error(error_msg)
             raise Exception(error_msg)
     
-    def _process_cas_login(self, cas_login_url):
+    def _process_cas_login(self, cas_login_url) -> str:
         """处理CAS登录URL，获取state并处理第6-7步重定向"""
         logger.info("步骤6-7: 处理CAS登录URL获取state")
         
@@ -378,32 +363,10 @@ class XiaoyaLoginManager:
                 
             logger.debug(f"CAS登录重定向URL: {location}")
             
-            # 从URL中提取state参数
-            query_params = self._parse_query_params(location)
-            state = query_params.get('state', [None])[0]
-            
-            # 如果直接从查询参数中获取失败，尝试从URL中正则匹配
-            if not state:
-                # 尝试匹配securityNotice URL中的state
-                security_notice_match = re.search(r'securityNotice\?.*?state=([^&]+)', location)
-                if security_notice_match:
-                    state = security_notice_match.group(1)
-                else:
-                    # 更一般的匹配模式
-                    alt_state_match = re.search(r'[?&]state=([^&]+)', location)
-                    if alt_state_match:
-                        state = alt_state_match.group(1)
-            
-            if not state:
-                error_msg = "无法从重定向URL中提取state参数"
-                logger.error(f"{error_msg}, URL: {location}")
-                raise Exception(error_msg)
-                
-            logger.info(f"成功提取state: {state}")
-            
-            # 返回state和下一步要访问的URL
+
+            # 返回下一步要访问的URL
             # 通常是重定向到安全提示页面(securityNotice)
-            return state, location
+            return location
             
         except requests.exceptions.RequestException as e:
             error_msg = f"处理CAS登录URL异常: {str(e)}"
@@ -456,28 +419,9 @@ class XiaoyaLoginManager:
                 raise Exception(error_msg)
                 
             logger.debug(f"授权重定向URL: {location}")
-            
-            # 从URL中提取code参数
-            query_params = self._parse_query_params(location)
-            code = query_params.get('code', [None])[0]
-            if not code:
-                error_msg = "无法从授权重定向URL中提取code参数"
-                logger.error(error_msg)
-                raise Exception(error_msg)
-                
-            logger.info(f"成功提取授权码code: {code[:10]}...")
-            
-            # 提取额外的state和schoolCode参数，如果有的话
-            state = query_params.get('state', [None])[0]
-            school_code = query_params.get('schoolCode', [None])[0]
-            
-            if state:
-                logger.debug(f"从重定向URL提取state: {state}")
-            if school_code:
-                logger.debug(f"从重定向URL提取schoolCode: {school_code}")
-            
-            # 返回code和最终回调URL
-            return code, location
+
+            # 返回最终回调URL
+            return location
             
         except requests.exceptions.RequestException as e:
             error_msg = f"获取授权码请求异常: {str(e)}"
@@ -500,17 +444,7 @@ class XiaoyaLoginManager:
             
             if response.status_code != 200:
                 logger.warning(f"最终回调请求返回非200状态码: {response.status_code}")
-            
-            # 记录最终URL和所有获取的cookie
-            logger.debug(f"最终URL: {response.url}")
-            cookies = self.session.cookies.get_dict()
-            important_cookies = [name for name in cookies.keys() if name.startswith(('XY_', 'Authorization', 'JSESSIONID'))]
-            
-            if important_cookies:
-                logger.info(f"成功获取重要cookie: {', '.join(important_cookies)}")
-            else:
-                logger.warning("未获取到任何重要cookie")
-                
+       
             logger.info("登录流程完成")
             return response
             
