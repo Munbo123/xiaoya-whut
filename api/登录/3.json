@@ -1,7 +1,0 @@
-{
-    "type":"GET",
-    "base_url": "http://zhlgd.whut.edu.cn/tpass/login",
-    "query_parameters": {
-      "service": "https://infra.ai-augmented.com/api/auth/cas/login?school_certify=10497"
-    }
-  }

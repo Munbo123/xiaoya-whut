@@ -1,8 +1,0 @@
-{
-    "base_url": "https://whut.ai-augmented.com/api/jw-starcmooc/user/authorCallback",
-    "query_parameters": {
-      "code": "0xbSJAVhIoCkq66266833505",
-      "state": "my09pl",
-      "schoolCode": "10497"
-    }
-  }

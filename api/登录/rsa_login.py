@@ -23,6 +23,68 @@ def get_location_header(response):
 
 # --- Login Steps ---
 
+def get_initial_cookies(session):
+    """
+    步骤0: 获取初始 XY_AUTH_SESSION cookie
+    """
+    print("\n[步骤 0] 获取初始 XY_AUTH_SESSION cookie...")
+    
+    # 构建完整的初始请求URL，包含所有参数
+    url = "https://infra.ai-augmented.com/api/auth/cas/login"
+    params = {
+        "school_certify": "10497",
+        "client_id": "xy_client_whut",
+        "state": "6874up", # 这个可能是随机生成的，但先尝试使用固定值
+        "redirect_uri": "https://whut.ai-augmented.com/api/jw-starcmooc/user/authorCallback?cb=https://whut.ai-augmented.com/app/jx-web/mycourse",
+        "response_type": "code",
+        "week_no_login_status": "0",
+        "scope": "",
+        "next": "https://infra.ai-augmented.com/app/auth/oauth2/securityNotice?response_type=code&state=6874up&client_id=xy_client_whut&redirect_uri=https://whut.ai-augmented.com/api/jw-starcmooc/user/authorCallback?cb=https://whut.ai-augmented.com/app/jx-web/mycourse&school=10497&lang=zh_CN",
+        "back": "https://infra.ai-augmented.com/app/auth/oauth2/login?response_type=code&state=6874up&client_id=xy_client_whut&redirect_uri=https://whut.ai-augmented.com/api/jw-starcmooc/user/authorCallback?cb=https://whut.ai-augmented.com/app/jx-web/mycourse&school=10497&lang=zh_CN"
+    }
+    
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+        'Accept-Encoding': 'gzip, deflate, br, zstd',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Upgrade-Insecure-Requests': '1'
+    }
+    
+    try:
+        # 发送请求，不允许自动重定向以便获取所有设置的cookies
+        response = session.get(url, params=params, headers=headers, allow_redirects=False)
+        print(f"  - 初始请求响应状态码: {response.status_code}")
+        
+        # 检查状态码是否表示重定向
+        if not response.is_redirect:
+            print(f"  - 警告: 初始请求未返回重定向响应。响应内容: {response.text[:500]}...")
+        
+        # 检查是否获取到 XY_AUTH_SESSION cookie
+        cookies = session.cookies.get_dict()
+        xy_auth_session = cookies.get('XY_AUTH_SESSION')
+        if xy_auth_session:
+            print(f"  - 成功获取 XY_AUTH_SESSION cookie: {xy_auth_session[:10]}...")
+        else:
+            print("  - 警告: 未获取到 XY_AUTH_SESSION cookie")
+            
+        # 获取Location头，如果后续需要继续处理
+        location = get_location_header(response)
+        if location:
+            print(f"  - 初始请求重定向到: {location}")
+        
+        print(f"  - 当前所有cookies: {cookies}")
+        return cookies
+        
+    except requests.exceptions.RequestException as e:
+        print(f"  - 获取初始cookies失败: {e}")
+        raise
+    except Exception as e:
+        print(f"  - 处理初始请求时发生未知错误: {e}")
+        raise
+
 def get_login_page(session):
     """
     步骤1: 获取登录页面以提取必要的表单参数 (lt, execution, _eventId)
@@ -105,7 +167,7 @@ def get_public_key(session):
         key_data = response.json()
         if "publicKey" not in key_data:
             raise ValueError("响应中未找到publicKey")
-        print(f"  - 成功获取公钥: {key_data['publicKey'][:30]}...")
+        print(f"  - 成功获取公钥: {key_data['publicKey']}")
         return key_data['publicKey']
     except requests.exceptions.RequestException as e:
         print(f"  - 获取公钥失败: {e}")
@@ -118,7 +180,7 @@ def encrypt_with_rsa(public_key, text):
     """
     步骤3: 使用RSA公钥加密数据
     """
-    print(f"\n[步骤 3] 加密数据: '{text[:10]}...' ...")
+    print(f"\n[步骤 3] 加密数据: '{text[:10]}")
     try:
         if not public_key.startswith('-----BEGIN PUBLIC KEY-----'):
             public_key = f"-----BEGIN PUBLIC KEY-----\n{public_key}\n-----END PUBLIC KEY-----"
@@ -127,7 +189,7 @@ def encrypt_with_rsa(public_key, text):
         cipher = PKCS1_v1_5.new(key)
         encrypted = cipher.encrypt(text.encode('utf-8'))
         encrypted_b64 = base64.b64encode(encrypted).decode('utf-8')
-        print(f"  - 加密结果: {encrypted_b64[:30]}...")
+        print(f"  - 加密结果: {encrypted_b64}")
         return encrypted_b64
     except Exception as e:
         print(f"  - 加密过程出错: {e}")
@@ -203,6 +265,7 @@ def get_state_from_cas_login(session, cas_login_url_with_ticket):
 
     # 添加更多请求头以模拟浏览器
     headers = {
+        'authority':'infra.ai-augmented.com',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7', # 更接近浏览器
         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6', # 添加
@@ -213,7 +276,6 @@ def get_state_from_cas_login(session, cas_login_url_with_ticket):
         'Upgrade-Insecure-Requests': '1' # 添加
         # 暂时忽略 sec-ch-* 和 sec-fetch-* 头
     }
-    print(f"  - 请求头: {headers}") # 打印将要发送的请求头
 
     try:
         # 请求带ticket的URL，不允许自动重定向
@@ -277,30 +339,61 @@ def get_state_from_cas_login(session, cas_login_url_with_ticket):
 
 def get_code_from_auth_redirect(session, auth_redirect_url_with_state):
     """
-    步骤8 & 9: 访问Auth Redirect URL并提取Code
+    步骤8 & 9: 访问安全提示页面并获取授权重定向
     """
-    print("\n[步骤 8 & 9] 访问Auth Redirect URL并提取Code...")
+    print("\n[步骤 8] 访问安全提示页面(securityNotice)...")
     print(f"  - 请求URL: {auth_redirect_url_with_state}")
 
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Referer': 'https://zhlgd.whut.edu.cn/', # 可能需要调整Referer
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+        'Referer': 'https://zhlgd.whut.edu.cn/', 
     }
 
     try:
-        # 请求带state的URL，不允许自动重定向
-        response = session.get(auth_redirect_url_with_state, headers=headers, allow_redirects=False)
-        print(f"  - Auth Redirect响应状态码: {response.status_code}")
+        # 1. 首先请求安全提示页面 - 这一步返回200，不是重定向
+        response = session.get(auth_redirect_url_with_state, headers=headers)
+        print(f"  - 安全提示页面响应状态码: {response.status_code}")
+        
+        if response.status_code != 200:
+            print(f"  - 警告: 安全提示页面返回非200状态码: {response.status_code}")
+            print(f"  - 响应内容: {response.text[:500]}...")
 
-        if not response.is_redirect:
-             print(f"  - 错误: 访问Auth Redirect后未收到重定向响应。响应内容: {response.text[:500]}...")
-             raise ValueError("访问Auth Redirect后未重定向")
+        # 解析页面中可能包含的state或其他参数
+        state_match = re.search(r'state=([^&"\']+)', response.text)
+        state = state_match.group(1) if state_match else None
+        
+        if state:
+            print(f"  - 从页面内容中提取state: {state}")
+        
+        # 2. 然后访问授权重定向API
+        print("\n[步骤 9] 访问授权重定向API...")
+        
+        # 构建onAccountAuthRedirect请求URL
+        redirect_api_url = "https://infra.ai-augmented.com/api/auth/oauth/onAccountAuthRedirect"
+        
+        redirect_headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36 Edg/135.0.0.0',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+            'Referer': auth_redirect_url_with_state,
+        }
+        
+        # 请求授权重定向API，不允许自动重定向以便获取Location
+        redirect_response = session.get(redirect_api_url, headers=redirect_headers, allow_redirects=False)
+        print(f"  - 授权重定向API响应状态码: {redirect_response.status_code}")
+        
+        if not redirect_response.is_redirect:
+            print(f"  - 错误: 授权重定向API未返回重定向响应")
+            print(f"  - 响应内容: {redirect_response.text[:500]}...")
+            raise ValueError("授权重定向API未返回重定向")
 
-        location = get_location_header(response)
+        # 获取重定向Location
+        location = get_location_header(redirect_response)
         if not location:
-            raise ValueError("Auth Redirect响应头中未找到Location")
-        print(f"  - Location: {location}")
+            raise ValueError("授权重定向API响应头中未找到Location")
+        print(f"  - 授权重定向Location: {location}")
 
         # 提取Code
         query_params = parse_query_params(location)
@@ -308,13 +401,22 @@ def get_code_from_auth_redirect(session, auth_redirect_url_with_state):
         if not code:
             raise ValueError("Location URL中未找到code参数")
         print(f"  - 成功提取Code: {code}")
+        
+        # 也提取state参数
+        state = query_params.get('state', [None])[0]
+        if state:
+            print(f"  - 从重定向URL中提取state: {state}")
+        
         return code, location # 返回code和最终的回调URL
 
     except requests.exceptions.RequestException as e:
-        print(f"  - 访问Auth Redirect失败: {e}")
+        print(f"  - 请求失败: {e}")
         raise
     except ValueError as e:
-        print(f"  - 处理Auth Redirect响应或提取Code失败: {e}")
+        print(f"  - 处理响应或提取参数失败: {e}")
+        raise
+    except Exception as e:
+        print(f"  - 发生未知错误: {e}")
         raise
 
 def final_callback_request(session, final_callback_url):
@@ -358,6 +460,9 @@ def full_login_flow(username, password):
     print("  - Manually added initial cookies: WT-prd-language, WT-prd-teaching-schoolId")
     
     try:
+        # 步骤 0
+        get_initial_cookies(session)
+        
         # 步骤 1
         form_params, login_page_url = get_login_page(session)
         
@@ -402,7 +507,7 @@ if __name__ == "__main__":
     password = "nf3039755985"
     
     print("="*50)
-    print("开始执行复杂登录流程") # 更新版本号
+    print("开始执行复杂登录流程")
     print("="*50)
     
     final_session = full_login_flow(username, password)
