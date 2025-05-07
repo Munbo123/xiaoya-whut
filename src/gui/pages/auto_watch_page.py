@@ -201,8 +201,9 @@ class AutoWatchDialog(QDialog):
 class AutoWatchPage(QWidget):
     """自动观看页面，用于自动完成小雅平台上的视频观看任务"""
     
-    def __init__(self):
+    def __init__(self, course_manager=None):
         super().__init__()
+        self.course_manager = course_manager
         self.init_ui()
     
     def init_ui(self):
@@ -220,9 +221,9 @@ class AutoWatchPage(QWidget):
         line.setFrameShadow(QFrame.Sunken)
         main_layout.addWidget(line)
         
-        # 课程卡片网格视图 - 直接显示，不再需要登录
+        # 课程卡片网格视图 - 使用共享的CourseCardGrid组件
         from src.gui.pages.download_page import CourseCardGrid
-        self.course_grid = CourseCardGrid()
+        self.course_grid = CourseCardGrid(self.course_manager)
         
         # 连接课程卡片信号
         self.course_grid.courseSelected.connect(self.on_course_selected)
@@ -234,23 +235,27 @@ class AutoWatchPage(QWidget):
     @Slot(str)
     def on_course_selected(self, course_id):
         """课程被选择的处理函数"""
-        # 示例处理，实际中可能会有其他操作
-        print(f"课程被选择: {course_id}")
+        if not self.course_manager:
+            return
+        course = self.course_manager.get_course_by_id(course_id)
+        if course:
+            print(f"课程被选择: {course.get_name()}")
     
     @Slot(str, str)
     def on_course_action(self, course_id, action):
         """课程操作被触发的处理函数"""
+        if not self.course_manager:
+            return
+            
+        course = self.course_manager.get_course_by_id(course_id)
+        if not course:
+            return
+            
         if action == "auto_watch":
-            # 找到对应的课程卡片以获取课程名称
-            for i in range(self.course_grid.grid_layout.count()):
-                item = self.course_grid.grid_layout.itemAt(i)
-                if item and item.widget() and isinstance(item.widget(), CourseCard) and item.widget().course_id == course_id:
-                    course_name = item.widget().course_name
-                    # 打开自动观看对话框
-                    dialog = AutoWatchDialog(course_id, course_name, self)
-                    dialog.exec()
-                    break
+            # 打开自动观看对话框
+            dialog = AutoWatchDialog(course_id, course.get_name(), self)
+            dialog.exec()
         elif action == "download":
-            print(f"下载资源: {course_id}")
+            print(f"下载资源: {course.get_name()}")
         elif action == "detail":
-            print(f"查看详情: {course_id}")
+            print(f"查看详情: {course.get_name()}")

@@ -5,83 +5,103 @@
 """
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTabWidget, QScrollArea, QSpacerItem, QSizePolicy,
-    QGroupBox, QGridLayout, QLineEdit, QCheckBox, QComboBox,
-    QFrame, QDialog, QFileDialog
+    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, 
+    QFrame, QScrollArea, QMessageBox, QSizePolicy, QSpacerItem,
+    QGroupBox, QGridLayout, QLineEdit, QFileDialog, QCheckBox
 )
-from PySide6.QtCore import Qt, Signal, QSize
-from PySide6.QtGui import QPixmap, QIcon, QFont, QColor
-
+from PySide6.QtCore import Qt, Signal, QSize, QUrl
+from PySide6.QtGui import QPixmap, QFont, QPainter, QColor, QPainterPath, QDesktopServices
+from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 import qtawesome as qta
+import keyring
 
-# 导入登录对话框
-from src.gui.components.login_dialog import LoginDialog
-from src.core.app_config import AppConfig
+from src.gui.components.login_dialog import LoginDialog, KEYRING_SERVICE, USERNAME_KEY
 
 class AccountWidget(QWidget):
     """账户设置页面"""
     
     logout_signal = Signal()  # 用于通知主窗口用户已退出登录
-    login_signal = Signal()   # 用于通知主窗口用户已登录
-    
+    login_success = Signal(object)  # 用于通知主窗口登录成功，传递course_manager对象
+
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.network_manager = QNetworkAccessManager(self)
+        self.user_info_manager = None  # 用户信息管理器实例
+        self.is_logging_in = False  # 登录中状态标记
+        self.course_manager = None
         self.init_ui()
-        self.config = AppConfig()
-        self.update_ui()  # 初始化UI状态
-        
+        self.update_ui()
+    
     def init_ui(self):
         """初始化UI"""
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
+        # 创建主布局
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(20, 20, 20, 20)
+        main_layout.setSpacing(20)
         
-        # 账户卡片
-        self.account_card = QFrame()
-        self.account_card.setObjectName("accountCard")
-        self.account_card.setStyleSheet("""
-            #accountCard {
-                background-color: white;
+        # 创建用户信息卡片
+        card = QFrame()
+        card.setObjectName("userCard")
+        card.setStyleSheet("""
+            QFrame#userCard {
+                background: white;
+                border: 1px solid #E5E7EB;
                 border-radius: 8px;
-                border: 1px solid #E0E0E0;
-                padding: 10px;
             }
         """)
-        card_layout = QHBoxLayout(self.account_card)
-        card_layout.setContentsMargins(15, 15, 15, 15)
         
-        # 头像
-        self.avatar_label = QLabel()
-        self.avatar_label.setFixedSize(50, 50)
-        self.avatar_label.setScaledContents(True)
-        self.avatar_label.setStyleSheet("border-radius: 25px; background-color: #f0f0f0;")
-        self.default_avatar = qta.icon("fa5s.user", color="#999999").pixmap(QSize(30, 30))
+        # 卡片内布局
+        card_layout = QHBoxLayout(card)
+        card_layout.setContentsMargins(20, 20, 20, 20)
+        card_layout.setSpacing(15)
+        
+        # 头像区域
+        avatar_frame = QFrame()
+        avatar_frame.setFixedSize(80, 80)
+        avatar_frame.setStyleSheet("""
+            QFrame {
+                background: #F3F4F6;
+                border-radius: 40px;
+            }
+        """)
+        
+        self.avatar_label = QLabel(avatar_frame)
+        self.avatar_label.setFixedSize(80, 80)
+        self.avatar_label.setAlignment(Qt.AlignCenter)
+        self.default_avatar = qta.icon("fa5s.user", color="#999999").pixmap(QSize(40, 40))
         self.avatar_label.setPixmap(self.default_avatar)
-        card_layout.addWidget(self.avatar_label)
         
         # 用户信息
         info_layout = QVBoxLayout()
+        info_layout.setSpacing(5)
+        
         self.name_label = QLabel("未登录")
-        self.name_label.setFont(QFont("微软雅黑", 12, QFont.Bold))
+        self.name_label.setFont(QFont("微软雅黑", 16, QFont.Bold))
+        self.name_label.setStyleSheet("color: #111827;")
+        
         self.school_label = QLabel("")
-        self.school_label.setFont(QFont("微软雅黑", 10))
-        self.school_label.setStyleSheet("color: #666;")
+        self.school_label.setFont(QFont("微软雅黑", 12))
+        self.school_label.setStyleSheet("color: #4B5563;")
         
         info_layout.addWidget(self.name_label)
         info_layout.addWidget(self.school_label)
-        card_layout.addLayout(info_layout, 1)  # 1表示会占据剩余空间
+        info_layout.addStretch()
         
-        # 登录/退出按钮
+        # 按钮区域
+        button_layout = QVBoxLayout()
+        button_layout.setSpacing(10)
+        button_layout.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        
         self.login_btn = QPushButton("登录")
-        self.login_btn.setFixedSize(80, 35)
-        self.login_btn.setFont(QFont("微软雅黑", 10))
+        self.login_btn.setFixedSize(100, 40)
+        self.login_btn.setFont(QFont("微软雅黑", 12))
         self.login_btn.setCursor(Qt.PointingHandCursor)
         self.login_btn.setStyleSheet("""
             QPushButton {
                 background-color: #0369a1;
                 color: white;
                 border: none;
-                border-radius: 4px;
+                border-radius: 6px;
                 font-weight: bold;
             }
             QPushButton:hover {
@@ -93,61 +113,108 @@ class AccountWidget(QWidget):
         """)
         self.login_btn.clicked.connect(self.show_login_dialog)
         
-        self.logout_btn = QPushButton("退出")
-        self.logout_btn.setFixedSize(80, 35)
-        self.logout_btn.setFont(QFont("微软雅黑", 10))
+        self.logout_btn = QPushButton("退出登录")
+        self.logout_btn.setFixedSize(100, 40)
+        self.logout_btn.setFont(QFont("微软雅黑", 12))
         self.logout_btn.setCursor(Qt.PointingHandCursor)
         self.logout_btn.setStyleSheet("""
             QPushButton {
-                background-color: #e5e7eb;
-                color: #1f2937;
+                background-color: #F3F4F6;
+                color: #4B5563;
                 border: none;
-                border-radius: 4px;
+                border-radius: 6px;
                 font-weight: bold;
             }
             QPushButton:hover {
-                background-color: #d1d5db;
+                background-color: #E5E7EB;
             }
             QPushButton:pressed {
-                background-color: #e5e7eb;
+                background-color: #D1D5DB;
             }
         """)
         self.logout_btn.clicked.connect(self.logout)
         
-        card_layout.addWidget(self.login_btn)
-        card_layout.addWidget(self.logout_btn)
+        button_layout.addWidget(self.login_btn)
+        button_layout.addWidget(self.logout_btn)
         
-        # 添加账户卡片到主布局
-        layout.addWidget(self.account_card)
+        # 组装卡片布局
+        card_layout.addWidget(avatar_frame)
+        card_layout.addLayout(info_layout, 1)
+        card_layout.addLayout(button_layout)
         
-        # 添加说明文本
-        info_label = QLabel("登录小雅平台账号后，您可以下载资源和使用自动观看功能。")
-        info_label.setStyleSheet("color: #666; margin-top: 15px;")
-        layout.addWidget(info_label)
+        # 添加卡片到主布局
+        main_layout.addWidget(card)
+        main_layout.addStretch()
+    
+    def set_rounded_avatar(self, pixmap: QPixmap):
+        """设置圆形头像"""
+        if pixmap.isNull():
+            return
         
-        # 添加垂直空白
-        layout.addStretch(1)
+        # 创建圆形头像
+        rounded = QPixmap(pixmap.size())
+        rounded.fill(Qt.transparent)
+        
+        painter = QPainter(rounded)
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        path = QPainterPath()
+        path.addEllipse(0, 0, pixmap.width(), pixmap.height())
+        painter.setClipPath(path)
+        painter.drawPixmap(0, 0, pixmap)
+        painter.end()
+        
+        # 调整大小并设置
+        scaled_avatar = rounded.scaled(80, 80, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        self.avatar_label.setPixmap(scaled_avatar)
+    
+    def load_avatar(self, url: str):
+        """从URL加载头像"""
+        if not url:
+            return
+            
+        request = QNetworkRequest(url)
+        reply = self.network_manager.get(request)
+        reply.finished.connect(lambda: self.handle_avatar_response(reply))
+    
+    def handle_avatar_response(self, reply: QNetworkReply):
+        """处理头像加载响应"""
+        if reply.error() == QNetworkReply.NoError:
+            data = reply.readAll()
+            pixmap = QPixmap()
+            pixmap.loadFromData(data)
+            if not pixmap.isNull():
+                self.set_rounded_avatar(pixmap)
+        reply.deleteLater()
+    
+    def update_ui_with_user_info(self, user_info_manager):
+        """使用用户信息管理器更新UI"""
+        if not user_info_manager or not user_info_manager.is_info_loaded():
+            return
+            
+        user_info = user_info_manager.get_user_info()
+        self.name_label.setText(user_info.get('nickname', '未知用户'))
+        self.school_label.setText(user_info.get('school_name', ''))
+        
+        # 加载头像
+        avatar_url = user_info.get('avatar_url')
+        if avatar_url:
+            self.load_avatar(avatar_url)
+        else:
+            self.avatar_label.setPixmap(self.default_avatar)
     
     def update_ui(self):
         """更新UI状态"""
-        # 检查是否已登录
-        # user_info = self.config.get_user_info()
-        user_info = None # 这里需要替换为实际获取用户信息的代码
-
-        if user_info and user_info.get("logged_in", False):
+        if self.user_info_manager and self.user_info_manager.is_info_loaded():
             # 已登录状态
-            self.name_label.setText(user_info.get("name", "用户"))
-            self.school_label.setText(user_info.get("school", "武汉理工大学"))
+            self.name_label.setText(self.user_info_manager.get_nickname())
+            self.school_label.setText(self.user_info_manager.get_school_name())
+            self.is_logging_in = False
             
-            # 如果有头像数据，设置头像
-            avatar_path = user_info.get("avatar")
-            if avatar_path and avatar_path.strip():
-                pixmap = QPixmap(avatar_path)
-                if not pixmap.isNull():
-                    # 创建圆形头像
-                    self.set_rounded_avatar(pixmap)
-                else:
-                    self.avatar_label.setPixmap(self.default_avatar)
+            # 加载头像
+            avatar_url = self.user_info_manager.get_avatar_url()
+            if avatar_url:
+                self.load_avatar(avatar_url)
             else:
                 self.avatar_label.setPixmap(self.default_avatar)
             
@@ -156,7 +223,10 @@ class AccountWidget(QWidget):
             self.login_btn.hide()
         else:
             # 未登录状态
-            self.name_label.setText("未登录")
+            if self.is_logging_in:
+                self.name_label.setText("登录中...")
+            else:
+                self.name_label.setText("未登录")
             self.school_label.setText("")
             self.avatar_label.setPixmap(self.default_avatar)
             
@@ -164,36 +234,45 @@ class AccountWidget(QWidget):
             self.login_btn.show()
             self.logout_btn.hide()
     
-    def set_rounded_avatar(self, pixmap):
-        """设置圆形头像"""
-        # 创建一个临时QLabel用于获取圆形头像
-        temp_label = QLabel()
-        temp_label.setFixedSize(50, 50)
-        temp_label.setPixmap(pixmap)
-        temp_label.setScaledContents(True)
-        temp_label.setStyleSheet("border-radius: 25px; background-color: #f0f0f0; border: 1px solid #e0e0e0;")
-        
-        # 设置到实际显示的头像label
-        self.avatar_label.setStyleSheet("border-radius: 25px; background-color: #f0f0f0; border: 1px solid #e0e0e0;")
-        self.avatar_label.setPixmap(pixmap)
-    
     def show_login_dialog(self):
         """显示登录对话框"""
+        # 设置登录中状态
+        self.is_logging_in = True
+        self.update_ui()
+        
         dialog = LoginDialog(self)
-        if dialog.exec() == QDialog.Accepted:
-            # 登录成功后更新UI
-            self.update_ui()
+        dialog.login_success.connect(self.handle_login_success)
+        if dialog.exec() == LoginDialog.Accepted:
             self.login_signal.emit()
+    
+    def handle_login_success(self, session, user_info_manager, course_manager):
+        """处理登录成功"""
+        self.user_info_manager = user_info_manager
+        self.course_manager = course_manager
+        self.update_ui()
+        # 发送登录成功信号，传递course_manager对象
+        self.login_success.emit(course_manager)
     
     def logout(self):
         """退出登录"""
-        # 清除用户信息
-        self.config.clear_user_info()
-        # 更新UI
-        self.update_ui()
-        # 发送退出信号
-        self.logout_signal.emit()
-
+        reply = QMessageBox.question(
+            self,
+            "确认退出",
+            "确定要退出登录吗？",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            # 清除用户信息管理器
+            self.user_info_manager = None
+            self.is_logging_in = False
+            
+            # 更新UI
+            self.update_ui()
+            # 发送退出信号
+            self.logout_signal.emit()
+            QMessageBox.information(self, "提示", "已退出登录")
 
 class GeneralWidget(QWidget):
     """通用设置页面"""
@@ -355,54 +434,45 @@ class AboutWidget(QWidget):
 
 
 class SettingsPage(QWidget):
-    """设置页面，包含多个设置标签页"""
+    """设置页面"""
+    
+    login_success = Signal(object)  # 用于传递 course_manager
     
     def __init__(self, parent=None):
         super().__init__(parent)
         self.init_ui()
-        
+    
     def init_ui(self):
         """初始化UI"""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         
-        # 创建标签页
-        self.tab_widget = QTabWidget()
-        self.tab_widget.setStyleSheet("""
-            QTabWidget::pane {
-                border: none;
-                background-color: #F8F8F8;
-            }
-            QTabBar::tab {
-                background: #F0F0F0;
-                color: #333;
-                border: none;
-                padding: 15px 20px;  /* 增加垂直内边距从10px到15px */
-                font-size: 13px;
-                margin-top: 2px;     /* 添加顶部外边距 */
-            }
-            QTabBar::tab:selected {
-                background: #F8F8F8;
-                border-bottom: 2px solid #0369a1;
-                font-weight: bold;
-            }
-            QTabBar::tab:hover {
-                background: #E6E6E6;
+        # 创建滚动区域
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        
+        # 创建内容容器
+        container = QWidget()
+        container.setStyleSheet("""
+            QWidget {
+                background: #F9FAFB;
             }
         """)
         
-        # 创建账户设置页面
+        # 内容布局
+        content_layout = QVBoxLayout(container)
+        content_layout.setContentsMargins(20, 20, 20, 20)
+        content_layout.setSpacing(20)
+        
+        # 添加账户设置部分
         self.account_widget = AccountWidget()
-        # 创建通用设置页面
-        self.general_widget = GeneralWidget()
-        # 创建关于页面
-        self.about_widget = AboutWidget()
+        self.account_widget.login_success.connect(self.login_success)
+        content_layout.addWidget(self.account_widget)
         
-        # 添加标签页
-        self.tab_widget.addTab(self.account_widget, "账户设置")
-        self.tab_widget.addTab(self.general_widget, "通用设置")
-        self.tab_widget.addTab(self.about_widget, "关于")
+        # 添加其他设置项...
+        content_layout.addStretch()
         
-        # 添加标签页到主布局
-        layout.addWidget(self.tab_widget)
+        scroll.setWidget(container)
+        layout.addWidget(scroll)

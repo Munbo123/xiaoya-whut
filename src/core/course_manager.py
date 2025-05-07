@@ -11,7 +11,7 @@ import requests
 import logging
 from datetime import datetime
 from typing import List, Dict, Optional
-from course import Course
+from src.core.course import Course
 
 # 配置日志
 logging.basicConfig(

@@ -20,6 +20,12 @@ from src.gui.pages.auto_watch_page import AutoWatchPage
 from src.gui.pages.settings_page import SettingsPage
 from src.gui.components.title_bar import TitleBar  # 导入自定义标题栏
 
+import keyring
+from src.core.login import XiaoyaLoginManager
+from src.core.user_info import UserInfoManager
+from src.core.course_manager import CourseManager
+from src.gui.components.login_dialog import KEYRING_SERVICE, USERNAME_KEY
+
 class MainWindow(QMainWindow):
     """主窗口类，包含左侧标签栏和右侧内容区域"""
     
@@ -45,6 +51,9 @@ class MainWindow(QMainWindow):
         self.title_bar.minimizeClicked.connect(self.showMinimized)
         self.title_bar.maximizeClicked.connect(self.toggle_maximize)
         self.title_bar.closeClicked.connect(self.close)
+        
+        # 创建成员变量
+        self.settings_page = None
         
         # 添加标题栏到主布局
         self.main_layout.addWidget(self.title_bar)
@@ -82,14 +91,16 @@ class MainWindow(QMainWindow):
         
         # 启用抗锯齿
         self.setAttribute(Qt.WA_TranslucentBackground)
+        
+        # 尝试自动登录
+        self.auto_login()
     
     def paintEvent(self, event):
         """自定义绘制事件，绘制高质量圆角"""
         if not self.isMaximized():
             # 只有在非最大化状态下才进行自定义绘制
             try:
-                painter = QPainter(self)
-                painter.begin(self)  # 显式开始绘图
+                painter = QPainter(self)  # 这行已经隐式调用了begin()
                 painter.setRenderHint(QPainter.Antialiasing)  # 启用抗锯齿
                 painter.setBrush(Qt.white)  # 设置填充色
                 painter.setPen(Qt.NoPen)  # 无边框
@@ -304,8 +315,8 @@ class MainWindow(QMainWindow):
 
     def connect_signals(self):
         """连接信号和槽"""
-        # 主要的信号连接在其他方法中已经完成
-        pass
+        # 连接设置页面的登录成功信号
+        self.settings_page.login_success.connect(self.update_course_manager)
 
     def show_about_dialog(self):
         """显示关于对话框"""
@@ -331,3 +342,38 @@ class MainWindow(QMainWindow):
             event.accept()
         else:
             event.ignore()
+
+    def update_course_manager(self, course_manager):
+        """更新所有页面的课程管理器"""
+        self.download_page.course_grid.course_manager = course_manager
+        self.auto_watch_page.course_grid.course_manager = course_manager
+        # 重新加载课程数据
+        self.download_page.course_grid.load_courses()
+        self.auto_watch_page.course_grid.load_courses()
+
+    def auto_login(self):
+        """尝试自动登录"""
+        try:
+            # 从keyring获取保存的用户名和密码
+            username = keyring.get_password(KEYRING_SERVICE, USERNAME_KEY)
+            if username:
+                password = keyring.get_password(KEYRING_SERVICE, username)
+                if password:
+                    # 创建登录管理器并执行登录
+                    login_manager = XiaoyaLoginManager()
+                    session = login_manager.login(username, password)
+                    
+                    if session:
+                        # 创建用户信息管理器
+                        user_info_manager = UserInfoManager(session)
+                        if user_info_manager.is_info_loaded():
+                            # 创建课程管理器
+                            course_manager = CourseManager(session)
+                            if course_manager.refresh_courses():
+                                # 更新账户部件
+                                self.settings_page.account_widget.handle_login_success(
+                                    session, user_info_manager, course_manager
+                                )
+                                return
+        except Exception as e:
+            print(f"自动登录失败: {e}")  # 自动登录失败不弹窗提示用户

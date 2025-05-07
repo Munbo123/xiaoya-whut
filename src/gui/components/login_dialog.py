@@ -6,22 +6,34 @@
 
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QLineEdit, QCheckBox, QMessageBox, QFrame
+    QLineEdit, QCheckBox, QMessageBox, QFrame, QToolButton
 )
 from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtGui import QPixmap, QIcon, QFont
-
+import requests
+import keyring
 import qtawesome as qta
-from src.core.app_config import AppConfig
+
+from src.core.login import XiaoyaLoginManager
+from src.core.user_info import UserInfoManager
+from src.core.course_manager import CourseManager
+
+# 服务名称常量
+KEYRING_SERVICE = "xiaoya-whut"
+USERNAME_KEY = "username"
 
 class LoginDialog(QDialog):
     """登录对话框"""
     
+    login_success = Signal(requests.Session, UserInfoManager, CourseManager)  # 登录成功信号
+    
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.config = AppConfig()
         self.init_ui()
         
+        # 加载保存的登录信息
+        self.load_saved_credentials()
+    
     def init_ui(self):
         """初始化UI"""
         self.setWindowTitle("登录小雅平台")
@@ -69,7 +81,11 @@ class LoginDialog(QDialog):
             }
         """)
         
-        # 密码
+        # 密码输入区域（水平布局）
+        password_layout = QHBoxLayout()
+        password_layout.setSpacing(5)
+        
+        # 密码输入框
         self.password_edit = QLineEdit()
         self.password_edit.setPlaceholderText("密码")
         self.password_edit.setEchoMode(QLineEdit.Password)
@@ -85,6 +101,27 @@ class LoginDialog(QDialog):
                 border: 1px solid #0369a1;
             }
         """)
+        
+        # 密码显示/隐藏按钮
+        self.toggle_password_btn = QToolButton()
+        self.toggle_password_btn.setFixedSize(35, 35)
+        self.toggle_password_btn.setCursor(Qt.PointingHandCursor)
+        self.toggle_password_btn.setStyleSheet("""
+            QToolButton {
+                border: 1px solid #d0d0d0;
+                border-radius: 4px;
+                background: white;
+            }
+            QToolButton:hover {
+                background: #f5f5f5;
+            }
+        """)
+        # 设置初始图标为闭眼
+        self.toggle_password_btn.setIcon(qta.icon('fa5s.eye-slash', color='#666666'))
+        self.toggle_password_btn.clicked.connect(self.toggle_password_visibility)
+        
+        password_layout.addWidget(self.password_edit)
+        password_layout.addWidget(self.toggle_password_btn)
         
         # 记住密码
         self.remember_check = QCheckBox("记住密码")
@@ -105,7 +142,7 @@ class LoginDialog(QDialog):
         """)
         
         form_layout.addWidget(self.username_edit)
-        form_layout.addWidget(self.password_edit)
+        form_layout.addLayout(password_layout)
         form_layout.addWidget(self.remember_check)
         
         layout.addLayout(form_layout)
@@ -134,7 +171,29 @@ class LoginDialog(QDialog):
         self.login_btn.clicked.connect(self.login)
         
         layout.addWidget(self.login_btn)
+    
+    def toggle_password_visibility(self):
+        """切换密码显示/隐藏状态"""
+        if self.password_edit.echoMode() == QLineEdit.Password:
+            self.password_edit.setEchoMode(QLineEdit.Normal)
+            self.toggle_password_btn.setIcon(qta.icon('fa5s.eye', color='#666666'))
+        else:
+            self.password_edit.setEchoMode(QLineEdit.Password)
+            self.toggle_password_btn.setIcon(qta.icon('fa5s.eye-slash', color='#666666'))
+    
+    def load_saved_credentials(self):
+        """加载保存的登录凭据"""
+        # 从keyring获取保存的用户名
+        username = keyring.get_password(KEYRING_SERVICE, USERNAME_KEY)
         
+        if username:
+            # 如果找到了用户名，就获取对应的密码
+            password = keyring.get_password(KEYRING_SERVICE, username)
+            if username and password:
+                self.username_edit.setText(username)
+                self.password_edit.setText(password)
+                self.remember_check.setChecked(True)
+    
     def login(self):
         """登录处理"""
         username = self.username_edit.text().strip()
@@ -148,26 +207,51 @@ class LoginDialog(QDialog):
             QMessageBox.warning(self, "提示", "请输入密码")
             return
         
-        # 这里应该调用实际的登录接口
-        # 目前只是模拟登录成功
-        # TODO: 实现实际的登录逻辑
-        
-        # 模拟登录成功
-        user_info = {
-            "logged_in": True,
-            "name": username,  # 这里应该是实际的用户名
-            "school": "武汉理工大学",
-            "avatar": "",  # 这里应该是实际的头像路径
-            "username": username,
-            "token": "dummy_token"  # 这里应该是实际的token
-        }
-        
-        # 保存用户信息
-        self.config.save_user_info(user_info)
-        
-        # 如果勾选了记住密码
-        if self.remember_check.isChecked():
-            self.config.save_login_credentials(username, password)
-        
-        QMessageBox.information(self, "成功", "登录成功")
-        self.accept()  # 关闭对话框并返回QDialog.Accepted
+        try:
+            # 显示登录中状态
+            self.login_btn.setEnabled(False)
+            self.login_btn.setText("登录中...")
+            
+            # 提前关闭登录窗口
+            self.accept()
+            
+            # 创建登录管理器并执行登录
+            login_manager = XiaoyaLoginManager()
+            session = login_manager.login(username, password)
+            
+            if not session:
+                raise Exception("登录失败")
+            
+            # 创建用户信息管理器
+            user_info_manager = UserInfoManager(session)
+            if not user_info_manager.is_info_loaded():
+                raise Exception("获取用户信息失败")
+            
+            # 创建课程管理器
+            course_manager = CourseManager(session)
+            if not course_manager.refresh_courses():
+                raise Exception("获取课程信息失败")
+            
+            # 如果勾选了记住密码，使用keyring保存凭据
+            if self.remember_check.isChecked():
+                # 保存用户名和密码
+                keyring.set_password(KEYRING_SERVICE, USERNAME_KEY, username)
+                keyring.set_password(KEYRING_SERVICE, username, password)
+            else:
+                # 清除已保存的凭据
+                try:
+                    saved_username = keyring.get_password(KEYRING_SERVICE, USERNAME_KEY)
+                    if saved_username:
+                        keyring.delete_password(KEYRING_SERVICE, USERNAME_KEY)
+                        keyring.delete_password(KEYRING_SERVICE, saved_username)
+                except keyring.errors.PasswordDeleteError:
+                    # 如果密码不存在，忽略错误
+                    pass
+            
+            # 发送登录成功信号
+            self.login_success.emit(session, user_info_manager, course_manager)
+            
+        except Exception as e:
+            self.login_btn.setEnabled(True)
+            self.login_btn.setText("登录")
+            QMessageBox.critical(self, "错误", f"登录失败: {str(e)}")
