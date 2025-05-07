@@ -4,7 +4,7 @@
 """
 小雅平台用户信息获取模块
 
-该模块用于从小雅平台获取用户相关信息，如用户名、头像URL、学校名称等。
+该模块用于从小雅平台获取用户基本信息，如用户名、头像URL、学校名称等。
 """
 
 import requests
@@ -19,8 +19,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger('xiaoya.user_info')
 
-class UserInfo:
-    """小雅平台用户信息管理器"""
+class UserInfoManager:
+    """小雅平台用户基本信息管理器"""
     
     # 头像URL的基础域名
     AVATAR_BASE_URL = "https://whut.ai-augmented.com/api/jx-oresource"
@@ -45,36 +45,23 @@ class UserInfo:
         # 用户信息存储
         self.user_data = {
             "basic_info": {},      # 基本信息(用户名、头像、学校等)
-            "courses": [],         # 课程信息
-            "notifications": [],   # 通知信息
-            "statistics": {},      # 学习统计信息
             "last_update": None,   # 最后更新时间
             "is_loaded": False     # 是否已加载数据
         }
         
         # 如果提供了session，则立即获取用户信息
         if session:
-            self.refresh_all_info()
+            self.refresh_info()
     
-    def refresh_all_info(self):
+    def refresh_info(self):
         """
-        刷新获取所有用户信息
+        刷新获取用户基本信息
         
         Returns:
-            bool: 是否成功获取全部信息
+            bool: 是否成功获取信息
         """
-        logger.info("开始获取所有用户信息")
-        success = True
-        
-        # 获取基本用户信息
-        if not self._get_basic_user_info():
-            success = False
-            
-        # TODO: 获取课程信息
-        
-        # TODO: 获取通知信息
-        
-        # TODO: 获取学习统计信息
+        logger.info("开始获取用户基本信息")
+        success = self._get_basic_user_info()
         
         # 更新最后获取时间
         self.user_data["last_update"] = datetime.now()
@@ -235,14 +222,6 @@ class UserInfo:
         """获取用户ID"""
         return self.user_data["basic_info"].get("user_id", "")
     
-    def get_user_role(self):
-        """获取用户角色"""
-        return self.user_data["basic_info"].get("role", "")
-    
-    def get_department(self):
-        """获取用户所在院系/部门"""
-        return self.user_data["basic_info"].get("department", "")
-    
     def get_email(self):
         """获取用户邮箱"""
         return self.user_data["basic_info"].get("email", "")
@@ -251,48 +230,6 @@ class UserInfo:
         """获取所有基本信息"""
         return self.user_data["basic_info"]
     
-    # 课程信息获取方法
-    def get_courses(self):
-        """获取用户的课程列表"""
-        return self.user_data["courses"]
-    
-    def get_course_count(self):
-        """获取用户课程总数"""
-        return len(self.user_data["courses"])
-    
-    # 通知信息获取方法
-    def get_notifications(self):
-        """获取用户通知列表"""
-        return self.user_data["notifications"]
-    
-    def get_unread_notification_count(self):
-        """获取未读通知数量"""
-        return sum(1 for n in self.user_data["notifications"] if not n.get("read", False))
-    
-    # 统计信息获取方法
-    def get_statistics(self):
-        """获取学习统计信息"""
-        return self.user_data["statistics"]
-    
-    def to_dict(self):
-        """将所有用户信息转换为字典格式"""
-        return {
-            "basic_info": self.user_data["basic_info"],
-            "courses": self.user_data["courses"],
-            "notifications": self.user_data["notifications"],
-            "statistics": self.user_data["statistics"],
-            "last_update": self.user_data["last_update"].isoformat() if self.user_data["last_update"] else None,
-            "is_loaded": self.user_data["is_loaded"]
-        }
-    
-    def __str__(self):
-        """字符串表示"""
-        if not self.is_info_loaded():
-            return "用户信息未加载"
-        
-        return f"用户: {self.get_nickname()}, 学校: {self.get_school_name()}"
-    
-    # === 新增的获取方法 ===
     def get_author_id(self):
         """获取作者ID（用于资源上传）"""
         return self.user_data["basic_info"].get("author_id", "")
@@ -324,6 +261,21 @@ class UserInfo:
     def get_mobile(self):
         """获取手机号"""
         return self.user_data["basic_info"].get("mobile", "")
+    
+    def to_dict(self):
+        """将用户信息转换为字典格式"""
+        return {
+            "basic_info": self.user_data["basic_info"],
+            "last_update": self.user_data["last_update"].isoformat() if self.user_data["last_update"] else None,
+            "is_loaded": self.user_data["is_loaded"]
+        }
+    
+    def __str__(self):
+        """字符串表示"""
+        if not self.is_info_loaded():
+            return "用户信息未加载"
+        
+        return f"用户: {self.get_nickname()}, 学校: {self.get_school_name()}"
 
 
 if __name__ == "__main__":
@@ -344,23 +296,23 @@ if __name__ == "__main__":
         session = login_manager.login(username, password)
         
         # 获取用户信息
-        user_info = UserInfo(session)
+        user_info_manager = UserInfoManager(session)
         
-        if user_info.is_info_loaded():
+        if user_info_manager.is_info_loaded():
             print("\n用户信息获取成功！")
-            print(f"用户ID: {user_info.get_user_id()}")
-            print(f"作者ID: {user_info.get_author_id()}")
-            print(f"用户名: {user_info.get_nickname()}")
-            print(f"性别: {user_info.get_sex()}")
-            print(f"手机号: {user_info.get_mobile()}")
-            print(f"头像URL: {user_info.get_avatar_url()}")
+            print(f"用户ID: {user_info_manager.get_user_id()}")
+            print(f"作者ID: {user_info_manager.get_author_id()}")
+            print(f"用户名: {user_info_manager.get_nickname()}")
+            print(f"性别: {user_info_manager.get_sex()}")
+            print(f"手机号: {user_info_manager.get_mobile()}")
+            print(f"头像URL: {user_info_manager.get_avatar_url()}")
             print("\n学校信息:")
-            print(f"学校名称: {user_info.get_school_name()}")
-            print(f"学校Logo: {user_info.get_school_logo()}")
+            print(f"学校名称: {user_info_manager.get_school_name()}")
+            print(f"学校Logo: {user_info_manager.get_school_logo()}")
             print("\n院系信息:")
-            print(f"学院: {user_info.get_department_name()}")
-            print(f"专业: {user_info.get_major_name()}")
-            print(f"班级: {user_info.get_class_name()}")
+            print(f"学院: {user_info_manager.get_department_name()}")
+            print(f"专业: {user_info_manager.get_major_name()}")
+            print(f"班级: {user_info_manager.get_class_name()}")
         else:
             print("\n用户信息获取失败")
     except Exception as e:
