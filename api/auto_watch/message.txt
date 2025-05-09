@@ -1,0 +1,1 @@
+"{\"video_id\":\"107dcd2a2a2271f088b06733a68f0102\",\"played\":60.25,\"media_type\":1,\"duration\":403.64,\"watched_duration\":30.091084999999996}"

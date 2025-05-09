@@ -228,7 +228,7 @@ class CourseManager:
 
 if __name__ == "__main__":
     # 测试代码
-    from login import XiaoyaLoginManager
+    from src.core.xiaoya_login_manager import XiaoyaLoginManager
     import getpass
     
     # 创建登录管理器

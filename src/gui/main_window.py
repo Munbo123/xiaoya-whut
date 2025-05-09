@@ -21,7 +21,7 @@ from src.gui.pages.settings_page import SettingsPage
 from src.gui.components.title_bar import TitleBar  # 导入自定义标题栏
 
 import keyring
-from src.core.login import XiaoyaLoginManager
+from src.core.xiaoya_login_manager import XiaoyaLoginManager
 from src.core.user_info import UserInfoManager
 from src.core.course_manager import CourseManager
 from src.gui.components.login_dialog import KEYRING_SERVICE, USERNAME_KEY

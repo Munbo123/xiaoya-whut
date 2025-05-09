@@ -14,7 +14,7 @@ import requests
 import keyring
 import qtawesome as qta
 
-from src.core.login import XiaoyaLoginManager
+from src.core.xiaoya_login_manager import XiaoyaLoginManager
 from src.core.user_info import UserInfoManager
 from src.core.course_manager import CourseManager
 
