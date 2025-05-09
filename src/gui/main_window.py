@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QSplitter, QPushButton, QLabel, QStatusBar, QToolBar, QMenuBar,
     QMenu, QMessageBox, QApplication, QSpacerItem, QSizePolicy
 )
-from PySide6.QtCore import Qt, QSize, Signal, Slot, QPoint
+from PySide6.QtCore import Qt, QSize, Signal, Slot, QPoint, QThread
 from PySide6.QtGui import QAction, QIcon, QPixmap, QPainterPath, QRegion, QPainter
 
 # 导入qtawesome图标库
@@ -26,6 +26,39 @@ from src.core.user_info import UserInfoManager
 from src.core.course_manager import CourseManager
 from src.gui.components.login_dialog import KEYRING_SERVICE, USERNAME_KEY
 
+class LoginThread(QThread):
+    """处理异步登录的线程类"""
+    login_success = Signal(object, object, object)  # session, user_info_manager, course_manager
+    login_failed = Signal(str)  # error message
+
+    def __init__(self, username=None, password=None):
+        super().__init__()
+        self.username = username
+        self.password = password
+
+    def run(self):
+        try:
+            # 创建登录管理器并执行登录
+            login_manager = XiaoyaLoginManager()
+            session = None
+            
+            if self.username and self.password:
+                session = login_manager.login(self.username, self.password)
+            
+            if session:
+                # 创建用户信息管理器
+                user_info_manager = UserInfoManager(session)
+                if user_info_manager.is_info_loaded():
+                    # 创建课程管理器
+                    course_manager = CourseManager(session)
+                    if course_manager.refresh_courses():
+                        self.login_success.emit(session, user_info_manager, course_manager)
+                        return
+            
+            self.login_failed.emit("登录失败或未找到保存的登录信息")
+        except Exception as e:
+            self.login_failed.emit(f"登录失败: {str(e)}")
+
 class MainWindow(QMainWindow):
     """主窗口类，包含左侧标签栏和右侧内容区域"""
     
@@ -37,7 +70,30 @@ class MainWindow(QMainWindow):
         # 创建主窗口容器
         self.container = QWidget()
         self.setCentralWidget(self.container)
+
+        # 创建成员变量
+        self.session = None
+        self.user_info_manager = None
+        self.course_manager = None
+        self.login_thread = None
         
+        # 初始化UI
+        self.init_base_ui()
+        self.init_ui()
+        self.setup_statusbar()
+        self.connect_signals()
+        
+        # 应用窗口样式
+        self.apply_styles()
+        
+        # 启用抗锯齿
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        
+        # 尝试自动登录
+        self.auto_login()
+
+    def init_base_ui(self):
+        """初始化基础UI组件"""
         # 创建主布局
         self.main_layout = QVBoxLayout(self.container)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
@@ -45,15 +101,12 @@ class MainWindow(QMainWindow):
         
         # 创建自定义标题栏
         self.title_bar = TitleBar(self)
-        self.title_bar.update_title(self.windowTitle())  # 设置标题
+        self.title_bar.update_title(self.windowTitle())
         
         # 连接标题栏的信号
         self.title_bar.minimizeClicked.connect(self.showMinimized)
         self.title_bar.maximizeClicked.connect(self.toggle_maximize)
         self.title_bar.closeClicked.connect(self.close)
-        
-        # 创建成员变量
-        self.settings_page = None
         
         # 添加标题栏到主布局
         self.main_layout.addWidget(self.title_bar)
@@ -61,18 +114,14 @@ class MainWindow(QMainWindow):
         # 创建内容区域容器
         self.content_container = QWidget()
         self.content_layout = QVBoxLayout(self.content_container)
-        self.content_layout.setContentsMargins(8, 8, 8, 8)  # 适当减小内边距
+        self.content_layout.setContentsMargins(8, 8, 8, 8)
         self.content_layout.setSpacing(0)
         
         # 添加内容区域到主布局
-        self.main_layout.addWidget(self.content_container, 1)  # 1表示会占据剩余空间
+        self.main_layout.addWidget(self.content_container, 1)
         
-        # 创建布局
-        self.init_ui()
-        self.setup_statusbar()
-        self.connect_signals()
-        
-        # 应用窗口样式 - 统一背景色，优化边框
+    def apply_styles(self):
+        """应用窗口样式"""
         self.setStyleSheet("""
             QMainWindow {
                 background-color: #F0F0F0;
@@ -87,14 +136,59 @@ class MainWindow(QMainWindow):
                 border-top: 1px solid #E0E0E0;
             }
         """)
-        self.container.setObjectName("container")  # 设置对象名以便应用样式
+        self.container.setObjectName("container")
+
+    def connect_signals(self):
+        """连接信号和槽"""
+        self.settings_page.login_success.connect(self.on_manual_login_success)
+
+    def on_manual_login_success(self, session, user_info_manager, course_manager):
+        """手动登录成功的处理函数"""
+        self.session = session
+        self.user_info_manager = user_info_manager
+        self.course_manager = course_manager
+        self.update_course_manager(course_manager)
+        self.status_label.setText("已登录")
+
+    def on_auto_login_success(self, session, user_info_manager, course_manager):
+        """自动登录成功的处理函数"""
+        self.session = session
+        self.user_info_manager = user_info_manager
+        self.course_manager = course_manager
+        self.update_course_manager(course_manager)
+        self.status_label.setText("自动登录成功")
         
-        # 启用抗锯齿
-        self.setAttribute(Qt.WA_TranslucentBackground)
-        
-        # 尝试自动登录
-        self.auto_login()
-    
+        # 更新账户部件
+        self.settings_page.account_widget.handle_login_success(
+            session, user_info_manager, course_manager
+        )
+
+    def on_login_failed(self, error_message):
+        """登录失败的处理函数"""
+        self.status_label.setText(error_message)
+        # 不显示错误对话框，因为这可能是正常的未登录状态
+        print(f"登录失败: {error_message}")
+
+    def auto_login(self):
+        """尝试自动登录"""
+        try:
+            # 从keyring获取保存的用户名和密码
+            username = keyring.get_password(KEYRING_SERVICE, USERNAME_KEY)
+            password = None
+            if username:
+                password = keyring.get_password(KEYRING_SERVICE, username)
+
+            # 创建并启动登录线程
+            self.login_thread = LoginThread(username, password)
+            self.login_thread.login_success.connect(self.on_auto_login_success)
+            self.login_thread.login_failed.connect(self.on_login_failed)
+            self.status_label.setText("正在尝试自动登录...")
+            self.login_thread.start()
+                
+        except Exception as e:
+            print(f"自动登录失败: {e}")
+            self.status_label.setText("自动登录失败")
+
     def paintEvent(self, event):
         """自定义绘制事件，绘制高质量圆角"""
         if not self.isMaximized():
@@ -313,11 +407,6 @@ class MainWindow(QMainWindow):
         self.status_label = QLabel("就绪")
         status_bar.addWidget(self.status_label, 1)
 
-    def connect_signals(self):
-        """连接信号和槽"""
-        # 连接设置页面的登录成功信号
-        self.settings_page.login_success.connect(self.update_course_manager)
-
     def show_about_dialog(self):
         """显示关于对话框"""
         QMessageBox.about(
@@ -325,7 +414,7 @@ class MainWindow(QMainWindow):
             "关于小雅平台助手",
             "小雅平台助手 v0.1.0\n\n"
             "一个帮助下载资源和完成自主观看任务的工具\n\n"
-            "© 2024 xiaoya-whut"
+            "© 2025 xiaoya-whut"
         )
 
     def closeEvent(self, event):
@@ -350,30 +439,3 @@ class MainWindow(QMainWindow):
         # 重新加载课程数据
         self.download_page.course_grid.load_courses()
         self.auto_watch_page.course_grid.load_courses()
-
-    def auto_login(self):
-        """尝试自动登录"""
-        try:
-            # 从keyring获取保存的用户名和密码
-            username = keyring.get_password(KEYRING_SERVICE, USERNAME_KEY)
-            if username:
-                password = keyring.get_password(KEYRING_SERVICE, username)
-                if password:
-                    # 创建登录管理器并执行登录
-                    login_manager = XiaoyaLoginManager()
-                    session = login_manager.login(username, password)
-                    
-                    if session:
-                        # 创建用户信息管理器
-                        user_info_manager = UserInfoManager(session)
-                        if user_info_manager.is_info_loaded():
-                            # 创建课程管理器
-                            course_manager = CourseManager(session)
-                            if course_manager.refresh_courses():
-                                # 更新账户部件
-                                self.settings_page.account_widget.handle_login_success(
-                                    session, user_info_manager, course_manager
-                                )
-                                return
-        except Exception as e:
-            print(f"自动登录失败: {e}")  # 自动登录失败不弹窗提示用户

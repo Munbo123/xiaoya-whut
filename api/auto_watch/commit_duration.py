@@ -6,7 +6,7 @@ from api.auto_watch.signature_helper import SignatureHelper
 
 # 请求头，带authority
 headers = {
-    'authorization':'Bearer 81b816cea2714613986be310a20074c1'
+    'authorization':'Bearer 81b82714613986be310a20074c1'
 }
 
 # 资源id

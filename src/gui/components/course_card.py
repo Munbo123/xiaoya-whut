@@ -8,8 +8,9 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QFrame, QSizePolicy, QToolButton, QMenu
 )
-from PySide6.QtCore import Qt, Signal, Slot, QSize
+from PySide6.QtCore import Qt, Signal, Slot, QSize, QUrl
 from PySide6.QtGui import QIcon, QPixmap, QColor, QPalette, QFont
+from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 
 class CourseCard(QFrame):
     """
@@ -19,9 +20,12 @@ class CourseCard(QFrame):
     clicked = Signal(str)  # 卡片被点击时发出信号，传递课程ID
     actionTriggered = Signal(str, str)  # 动作被触发时发出信号，传递课程ID和动作类型
     
-    def __init__(self, course_id="", course_name="", teacher_name="", semester="", 
-                 dept_name="", views=0, students=0, image_path=None, parent=None):
+    def __init__(self, course_id="", course_name="", teacher_name="", semester="", dept_name="", views=0, students=0, image_path=None, parent=None):
         super().__init__(parent)
+        
+        # 创建网络访问管理器
+        self.network_manager = QNetworkAccessManager()
+        self.network_manager.finished.connect(self._handle_network_response)
         
         # 存储课程信息
         self.course_id = course_id
@@ -35,6 +39,10 @@ class CourseCard(QFrame):
         
         # 设置卡片样式
         self.setup_ui()
+        
+        # 如果是网络图片，则开始加载
+        if image_path and (image_path.startswith('http://') or image_path.startswith('https://')):
+            self._load_network_image(image_path)
         
     def setup_ui(self):
         """设置卡片UI"""
@@ -77,28 +85,40 @@ class CourseCard(QFrame):
         """)
         
         # 设置默认图片或指定图片
-        if self.image_path and QPixmap(self.image_path).isNull() is False:
-            pixmap = QPixmap(self.image_path)
+        if self.image_path:
+            if not (self.image_path.startswith('http://') or self.image_path.startswith('https://')):
+                # 本地图片
+                pixmap = QPixmap(self.image_path)
+                if not pixmap.isNull():
+                    pixmap = pixmap.scaled(300, 150, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                    self.image_label.setPixmap(pixmap)
+                else:
+                    # 设置默认样式
+                    self.image_label.setText("课程图片")
+                    self.image_label.setStyleSheet("""
+                        QLabel {
+                            background-color: #3498db;
+                            color: white;
+                            border-top-left-radius: 8px;
+                            border-top-right-radius: 8px;
+                            font-weight: bold;
+                            font-size: 16px;
+                        }
+                    """)
+            # 网络图片会在_load_network_image中处理
         else:
-            # 默认图片（可以替换为您项目中的图片）
-            pixmap = QPixmap("assets/pictures/default_course.png")
-            if pixmap.isNull():
-                # 如果默认图片不存在，设置纯色背景
-                self.image_label.setText("课程图片")
-                self.image_label.setStyleSheet("""
-                    QLabel {
-                        background-color: #3498db;
-                        color: white;
-                        border-top-left-radius: 8px;
-                        border-top-right-radius: 8px;
-                        font-weight: bold;
-                        font-size: 16px;
-                    }
-                """)
-        
-        if not pixmap.isNull():
-            pixmap = pixmap.scaled(300, 150, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-            self.image_label.setPixmap(pixmap)
+            # 没有图片，设置默认样式
+            self.image_label.setText("课程图片")
+            self.image_label.setStyleSheet("""
+                QLabel {
+                    background-color: #3498db;
+                    color: white;
+                    border-top-left-radius: 8px;
+                    border-top-right-radius: 8px;
+                    font-weight: bold;
+                    font-size: 16px;
+                }
+            """)
         
         layout.addWidget(self.image_label)
         
@@ -167,47 +187,18 @@ class CourseCard(QFrame):
         
         stats_layout.addStretch()
         
-        # 菜单按钮
-        self.menu_btn = QToolButton()
-        self.menu_btn.setIcon(QIcon.fromTheme("view-more"))
-        self.menu_btn.setPopupMode(QToolButton.InstantPopup)
-        
-        # 创建菜单
-        menu = QMenu(self)
-        self.download_action = menu.addAction("下载资源")
-        self.auto_watch_action = menu.addAction("自动观看")
-        self.detail_action = menu.addAction("课程详情")
-        
-        self.menu_btn.setMenu(menu)
-        stats_layout.addWidget(self.menu_btn)
-        
+
         info_layout.addLayout(stats_layout)
         layout.addLayout(info_layout)
         
-        # 连接信号
-        self.download_action.triggered.connect(self._on_download_clicked)
-        self.auto_watch_action.triggered.connect(self._on_auto_watch_clicked)
-        self.detail_action.triggered.connect(self._on_detail_clicked)
 
     def mousePressEvent(self, event):
         """鼠标按下事件，发出卡片点击信号"""
         super().mousePressEvent(event)
         self.clicked.emit(self.course_id)
         
-    def _on_download_clicked(self):
-        """下载按钮点击事件"""
-        self.actionTriggered.emit(self.course_id, "download")
         
-    def _on_auto_watch_clicked(self):
-        """自动观看按钮点击事件"""
-        self.actionTriggered.emit(self.course_id, "auto_watch")
-        
-    def _on_detail_clicked(self):
-        """详情按钮点击事件"""
-        self.actionTriggered.emit(self.course_id, "detail")
-        
-    def update_info(self, course_id="", course_name="", teacher_name="", semester="", 
-                    dept_name="", views=0, students=0, image_path=None):
+    def update_info(self, course_id="", course_name="", teacher_name="", semester="", dept_name="", views=0, students=0, image_path=None):
         """更新卡片信息"""
         if course_id:
             self.course_id = course_id
@@ -231,7 +222,48 @@ class CourseCard(QFrame):
             self.students_label.setText(f" {students}人")
         if image_path:
             self.image_path = image_path
-            pixmap = QPixmap(image_path)
-            if not pixmap.isNull():
-                pixmap = pixmap.scaled(300, 150, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-                self.image_label.setPixmap(pixmap)
+            if image_path.startswith('http://') or image_path.startswith('https://'):
+                # 如果是网络图片，使用网络加载
+                self._load_network_image(image_path)
+            else:
+                # 如果是本地图片，直接加载
+                pixmap = QPixmap(image_path)
+                if not pixmap.isNull():
+                    pixmap = pixmap.scaled(300, 150, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                    self.image_label.setPixmap(pixmap)
+
+    def _load_network_image(self, url):
+        """加载网络图片"""
+        if not url:
+            return
+            
+        request = QNetworkRequest(QUrl(url))
+        reply = self.network_manager.get(request)
+        reply.finished.connect(lambda: self._handle_network_response(reply))
+
+    def _handle_network_response(self, reply):
+        """处理网络请求响应"""
+        if reply.error() == QNetworkReply.NoError:
+            # 读取图片数据
+            data = reply.readAll()
+            pixmap = QPixmap()
+            if pixmap.loadFromData(data):
+                # 缩放图片并设置到标签
+                scaled_pixmap = pixmap.scaled(300, 150, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                self.image_label.setPixmap(scaled_pixmap)
+        else:
+            print(f"Error loading image: {reply.errorString()}")
+            # 设置默认图片样式
+            self.image_label.setText("课程图片")
+            self.image_label.setStyleSheet("""
+                QLabel {
+                    background-color: #3498db;
+                    color: white;
+                    border-top-left-radius: 8px;
+                    border-top-right-radius: 8px;
+                    font-weight: bold;
+                    font-size: 16px;
+                }
+            """)
+        
+        reply.deleteLater()

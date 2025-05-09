@@ -2,7 +2,7 @@ import requests
 
 # 请求头，带authority
 headers = {
-    'authorization':'Bearer 81b816cea2714613986be310a20074c1'
+    'authorization':'Bearer 81b816cea271486be310a20074c1'
 }
 
 # 课程id

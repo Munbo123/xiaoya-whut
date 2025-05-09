@@ -23,7 +23,7 @@ def setup_application():
     """设置应用程序基本信息和环境"""
     # 设置应用信息
     QCoreApplication.setApplicationName("小雅平台助手")
-    QCoreApplication.setApplicationVersion("0.1.0")
+    QCoreApplication.setApplicationVersion("2.0")
     QCoreApplication.setOrganizationName("xiaoya-whut")
     
     # 配置高DPI缩放
