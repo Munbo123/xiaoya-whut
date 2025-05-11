@@ -60,3 +60,7 @@ class AutoWatchPage(QWidget):
         if group:
             print(f"课程被选择: {group.get_name()}")
     
+    def update_group_manager(self, group_manager):
+        """更新课程管理器"""
+        self.group_manager = group_manager
+        self.course_grid.update_group_manager(group_manager)

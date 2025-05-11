@@ -83,4 +83,9 @@ class DownloadPage(QWidget):
                 
             # 连接返回按钮的点击信号
             resource_page.findChild(QPushButton).clicked.connect(on_back)
+    
+    def update_group_manager(self, group_manager):
+        """更新课程管理器"""
+        self.group_manager = group_manager
+        self.course_grid.update_group_manager(group_manager)
 

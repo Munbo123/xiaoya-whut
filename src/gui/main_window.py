@@ -61,6 +61,8 @@ class LoginThread(QThread):
 class MainWindow(QMainWindow):
     """主窗口类，包含左侧标签栏和右侧内容区域"""
     
+    group_manager_updated = Signal(object)  # 当 group_manager 更新时发出此信号
+    
     def __init__(self):
         super().__init__(None, Qt.FramelessWindowHint)  # 无边框窗口
         self.setWindowTitle("小雅平台助手")
@@ -140,13 +142,14 @@ class MainWindow(QMainWindow):
     def connect_signals(self):
         """连接信号和槽"""
         self.settings_page.login_success.connect(self.on_manual_login_success)
+        self.group_manager_updated.connect(self.update_group_manager)  # 连接更新信号
 
     def on_manual_login_success(self, login_manager, user_info_manager, group_manager):
         """手动登录成功的处理函数"""
         self.login_manager = login_manager
         self.user_info_manager = user_info_manager
         self.group_manager = group_manager
-        self.update_group_manager(group_manager)
+        self.group_manager_updated.emit(group_manager)  # 发送更新信号
         self.status_label.setText("已登录")
 
     def on_auto_login_success(self, login_manager, user_info_manager, group_manager):
@@ -154,7 +157,7 @@ class MainWindow(QMainWindow):
         self.login_manager = login_manager
         self.user_info_manager = user_info_manager
         self.group_manager = group_manager
-        self.update_group_manager(group_manager)
+        self.group_manager_updated.emit(group_manager)  # 发送更新信号
         self.status_label.setText("自动登录成功")
         
         # 更新账户部件
@@ -433,8 +436,5 @@ class MainWindow(QMainWindow):
 
     def update_group_manager(self, group_manager):
         """更新所有页面的课程组管理器"""
-        self.download_page.course_grid.group_manager = group_manager
-        self.auto_watch_page.course_grid.group_manager = group_manager
-        # 重新加载课程数据
-        self.download_page.course_grid.load_courses()
-        self.auto_watch_page.course_grid.load_courses()
+        self.download_page.update_group_manager(group_manager)
+        self.auto_watch_page.update_group_manager(group_manager)

@@ -246,3 +246,8 @@ class CourseCardGrid(QWidget):
     def filter_courses(self, text):
         """根据学期或状态筛选课程"""
         self.load_courses()
+
+    def update_group_manager(self, group_manager):
+        """更新课程管理器"""
+        self.group_manager = group_manager
+        self.load_courses()
