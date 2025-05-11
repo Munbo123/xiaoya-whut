@@ -248,8 +248,8 @@ class MainWindow(QMainWindow):
         side_layout.setSpacing(0)
         
         # 创建功能页面
-        self.download_page = DownloadPage()
-        self.auto_watch_page = AutoWatchPage()
+        self.download_page = DownloadPage(group_manager=self.group_manager)
+        self.auto_watch_page = AutoWatchPage(group_manager=self.group_manager)
         self.settings_page = SettingsPage()
         
         # 创建功能按钮，使用qtawesome图标
