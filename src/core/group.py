@@ -11,7 +11,11 @@ from typing import Dict, List, Optional
 from datetime import datetime
 import logging
 import requests
-from src.core.resource_tree import ResourceTree
+try:
+    from src.core.resource_tree import ResourceTree
+except ModuleNotFoundError:
+    # For direct file execution
+    from resource_tree import ResourceTree
 
 # 配置日志
 logging.basicConfig(
@@ -190,7 +194,7 @@ class Group:
     
     def __str__(self) -> str:
         """字符串表示"""
-        return f"{self.name} ({self.term_name}, {self.teacher_names})"
+        return f"Group:{self.name} ({self.term_name}, {self.teacher_names})"
         
     def __repr__(self) -> str:
         """对象表示"""

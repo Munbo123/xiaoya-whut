@@ -1,135 +1,139 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-课程资源下载页面，用于显示和下载单个课程的资源
+资源下载页面
 """
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
-    QLabel, QFrame
+    QWidget, QVBoxLayout, QScrollArea, QFrame,
+    QPushButton, QLabel, QProgressBar
 )
-from PySide6.QtCore import Qt
-import qtawesome as qta
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QFont
 
-from src.gui.components.resource_tree import ResourceTree
-
+from src.core.group import Group
+from src.core.resource import Resource
+from src.gui.components.resource_item import ResourceItem
+from src.gui.components.resource_folder_item import ResourceFolderItem
 
 class ResourceDownloadPage(QWidget):
-    """课程资源下载页面"""
+    """资源下载页面"""
     
-    def __init__(self, course=None, parent=None):
+    def __init__(self, group: Group, parent=None):
         super().__init__(parent)
-        self.course = course
+        self.group = group
+        self.resource_tree = group.get_resource_tree()
+        self.expanded_folders = set()  # 记录已展开的文件夹ID
         self.init_ui()
         
     def init_ui(self):
         """初始化UI"""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
         
-        # 添加标题栏
-        title_layout = QHBoxLayout()
-        
-        # 返回按钮
-        back_btn = QPushButton(qta.icon('fa5s.arrow-left', color='#666666'), "")
-        back_btn.setStyleSheet("""
-            QPushButton {
-                border: none;
-                padding: 5px;
-            }
-            QPushButton:hover {
-                background: #E5E5E5;
-                border-radius: 4px;
+        # 标题栏
+        title_frame = QFrame()
+        title_frame.setStyleSheet("""
+            QFrame {
+                background: white;
+                border-bottom: 1px solid #e5e7eb;
             }
         """)
-        title_layout.addWidget(back_btn)
+        title_layout = QVBoxLayout(title_frame)
+        title_layout.setContentsMargins(20, 15, 20, 15)
         
         # 课程名称
-        course_name = self.course.get_name() if self.course else "未知课程"
-        title_label = QLabel(course_name)
-        title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
-        title_layout.addWidget(title_label)
+        course_name = QLabel(self.group.get_name())
+        course_name.setFont(QFont("Microsoft YaHei", 16, QFont.Bold))
+        title_layout.addWidget(course_name)
         
-        title_layout.addStretch()
-        layout.addLayout(title_layout)
+        layout.addWidget(title_frame)
         
-        # 添加分割线
-        line = QFrame()
-        line.setFrameShape(QFrame.HLine)
-        line.setFrameShadow(QFrame.Sunken)
-        layout.addWidget(line)
-        
-        # 工具栏
-        toolbar = QHBoxLayout()
-        
-        # 全选按钮
-        select_all_btn = QPushButton("全选")
-        select_all_btn.clicked.connect(lambda: self.resource_tree.set_all_checked(True))
-        toolbar.addWidget(select_all_btn)
-        
-        # 全不选按钮
-        select_none_btn = QPushButton("全不选")
-        select_none_btn.clicked.connect(lambda: self.resource_tree.set_all_checked(False))
-        toolbar.addWidget(select_none_btn)
-        
-        toolbar.addStretch()
-        
-        # 下载选中资源按钮
-        download_btn = QPushButton(qta.icon('fa5s.download', color='white'), "下载选中资源")
-        download_btn.setStyleSheet("""
-            QPushButton {
-                background: #007AFF;
-                color: white;
+        # 滚动区域
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll_area.setStyleSheet("""
+            QScrollArea {
+                background: white;
                 border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-            }
-            QPushButton:hover {
-                background: #0066CC;
-            }
-            QPushButton:pressed {
-                background: #005299;
             }
         """)
-        download_btn.clicked.connect(self._download_selected)
-        toolbar.addWidget(download_btn)
         
-        layout.addLayout(toolbar)
+        # 滚动内容容器
+        self.content_widget = QWidget()
+        self.content_layout = QVBoxLayout(self.content_widget)
+        self.content_layout.setContentsMargins(20, 10, 20, 10)
+        self.content_layout.setSpacing(5)
         
-        # 资源树
-        self.resource_tree = ResourceTree()
-        self.resource_tree.itemCheckStateChanged.connect(self._on_item_check_changed)
-        self.resource_tree.itemDownloadRequested.connect(self._download_single)
-        layout.addWidget(self.resource_tree, 1)  # 1表示伸展因子
+        scroll_area.setWidget(self.content_widget)
+        layout.addWidget(scroll_area, 1)  # 1表示伸展因子
         
-        # 如果有课程数据，加载资源
-        if self.course:
-            self._load_resources()
+        # 初始化资源树显示
+        self._initialize_resource_tree()
+        
+    def _initialize_resource_tree(self):
+        """初始化资源树显示"""
+        if not self.resource_tree:
+            # 显示无资源提示
+            no_resource_label = QLabel("该课程暂无资源")
+            no_resource_label.setAlignment(Qt.AlignCenter)
+            no_resource_label.setStyleSheet("color: #666; padding: 20px;")
+            self.content_layout.addWidget(no_resource_label)
+            return
             
-    def _load_resources(self):
-        """加载课程资源"""
-        # TODO: 从课程对象加载资源数据
-        # 这里先添加一些示例数据
-        self.resource_tree.add_resource("课件/第一章", is_folder=True)
-        self.resource_tree.add_resource("课件/第一章/1.1节.pdf", parent_path="课件/第一章")
-        self.resource_tree.add_resource("课件/第一章/1.2节.pdf", parent_path="课件/第一章")
-        
-        self.resource_tree.add_resource("作业/作业1", is_folder=True)
-        self.resource_tree.add_resource("作业/作业1/要求.doc", parent_path="作业/作业1")
-        self.resource_tree.add_resource("作业/作业1/参考资料.pdf", parent_path="作业/作业1")
+        # 添加根节点的子节点
+        root_children = self.resource_tree.get_root_children()
+        for resource in root_children:
+            self._add_resource_widget(resource)
             
-    def _on_item_check_changed(self, path, checked):
-        """处理资源项选中状态改变"""
-        # TODO: 处理选中状态改变
-        print(f"资源 {path} 的选中状态改变为: {checked}")
+    def _add_resource_widget(self, resource: Resource, indent_level: int = 0):
+        """添加资源组件
         
-    def _download_single(self, path):
-        """下载单个资源"""
-        # TODO: 实现单个资源下载
-        print(f"请求下载资源: {path}")
+        Args:
+            resource: 资源对象
+            indent_level: 缩进级别
+        """
+        # 根据资源类型创建不同的组件
+        if resource.is_folder():
+            widget = ResourceFolderItem(resource)
+            widget.toggle.connect(self._on_folder_toggle)
+        else:
+            widget = ResourceItem(resource)
+            widget.download_clicked.connect(self._on_resource_download)
         
-    def _download_selected(self):
-        """下载选中的资源"""
-        checked_items = self.resource_tree.get_checked_items()
-        # TODO: 实现批量下载
-        print(f"请求下载选中的资源: {checked_items}")
+        # 设置缩进
+        widget_layout = widget.layout()
+        widget_layout.insertSpacing(0, indent_level * 20)
+        
+        # 添加到布局
+        self.content_layout.addWidget(widget)
+        
+        # 如果是展开的文件夹，添加其子节点
+        if resource.is_folder() and resource.get_id() in self.expanded_folders:
+            for child in self.resource_tree.get_children(resource.get_id()):
+                self._add_resource_widget(child, indent_level + 1)
+                
+    def _on_folder_toggle(self, expanded: bool, folder_id: str):
+        """文件夹展开/收起处理"""
+        if expanded:
+            self.expanded_folders.add(folder_id)
+        else:
+            self.expanded_folders.discard(folder_id)
+            
+        # 重新构建资源树显示
+        self._clear_content()
+        self._initialize_resource_tree()
+        
+    def _on_resource_download(self, resource_id: str):
+        """资源下载处理"""
+        # TODO: 实现资源下载逻辑
+        pass
+        
+    def _clear_content(self):
+        """清空内容区域"""
+        while self.content_layout.count():
+            item = self.content_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()

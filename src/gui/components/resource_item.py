@@ -1,91 +1,94 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-资源项组件，用于显示单个资源或文件夹
+资源项组件
 """
 
 from PySide6.QtWidgets import (
-    QWidget, QHBoxLayout, QCheckBox, QLabel, 
-    QToolButton, QSizePolicy
+    QWidget, QHBoxLayout, QLabel, QRadioButton,
+    QPushButton, QSizePolicy
 )
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QSize
+from PySide6.QtGui import QIcon, QFont
 import qtawesome as qta
 
+from src.core.resource import Resource
 
 class ResourceItem(QWidget):
-    """资源项组件"""
+    """资源项组件，显示单个资源项"""
     
-    checkStateChanged = Signal(bool)  # 选中状态改变信号
-    downloadClicked = Signal()  # 下载按钮点击信号
+    selected = Signal(bool, str)  # 选中状态改变信号(是否选中, 资源ID)
+    download_clicked = Signal(str)  # 下载按钮点击信号(资源ID)
     
-    def __init__(self, name, is_folder=False, level=0, parent=None):
+    def __init__(self, resource: Resource, parent=None):
         super().__init__(parent)
-        self.name = name
-        self.is_folder = is_folder
-        self.level = level
+        self.resource = resource
         self.init_ui()
         
     def init_ui(self):
         """初始化UI"""
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(self.level * 20, 0, 0, 0)  # 根据层级设置左边距
+        layout.setContentsMargins(5, 5, 10, 5)
+        layout.setSpacing(10)
         
-        # 选择框
-        self.checkbox = QCheckBox()
-        self.checkbox.setStyleSheet("""
-            QCheckBox::indicator {
-                width: 16px;
-                height: 16px;
-                border-radius: 8px;
-                border: 2px solid #999;
+        # 选择按钮
+        self.select_btn = QRadioButton()
+        self.select_btn.clicked.connect(self._on_selection_changed)
+        layout.addWidget(self.select_btn)
+        
+        # 资源名称
+        self.name_label = QLabel(self.resource.get_name())
+        self.name_label.setFont(QFont("Microsoft YaHei", 10))
+        self.name_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        layout.addWidget(self.name_label)
+        
+        # 下载按钮
+        self.download_btn = QPushButton()
+        self.download_btn.setIcon(qta.icon('fa5s.download', color='#0369a1'))
+        self.download_btn.setIconSize(QSize(16, 16))
+        self.download_btn.setFixedSize(32, 32)
+        self.download_btn.setStyleSheet("""
+            QPushButton {
+                border: none;
+                border-radius: 16px;
+                background: transparent;
             }
-            QCheckBox::indicator:checked {
-                background-color: #007AFF;
-                border-color: #007AFF;
+            QPushButton:hover {
+                background: #e5f3fc;
+            }
+            QPushButton:pressed {
+                background: #cce7f8;
             }
         """)
-        self.checkbox.stateChanged.connect(self._on_check_state_changed)
-        layout.addWidget(self.checkbox)
+        self.download_btn.clicked.connect(self._on_download_clicked)
+        layout.addWidget(self.download_btn)
         
-        # 文件夹/文件图标
-        icon = qta.icon('fa5s.folder' if self.is_folder else 'fa5s.file', 
-                       color='#666666')
-        icon_label = QLabel()
-        icon_label.setPixmap(icon.pixmap(16, 16))
-        layout.addWidget(icon_label)
+        # 设置整体样式
+        self.setStyleSheet("""
+            QWidget {
+                background: white;
+                border-radius: 4px;
+            }
+            QWidget:hover {
+                background: #f8f9fa;
+            }
+        """)
         
-        # 名称标签
-        name_label = QLabel(self.name)
-        layout.addWidget(name_label)
+        # 固定高度
+        self.setFixedHeight(44)
         
-        # 添加弹簧
-        layout.addStretch()
+    def _on_selection_changed(self, checked: bool):
+        """选中状态改变处理"""
+        self.selected.emit(checked, self.resource.get_id())
         
-        # 下载按钮（仅对文件显示）
-        if not self.is_folder:
-            download_btn = QToolButton()
-            download_btn.setIcon(qta.icon('fa5s.download', color='#007AFF'))
-            download_btn.setStyleSheet("""
-                QToolButton {
-                    border: none;
-                    padding: 2px;
-                }
-                QToolButton:hover {
-                    background-color: #E5E5E5;
-                    border-radius: 2px;
-                }
-            """)
-            download_btn.clicked.connect(self.downloadClicked.emit)
-            layout.addWidget(download_btn)
-            
-    def _on_check_state_changed(self, state):
-        """复选框状态改变的处理函数"""
-        self.checkStateChanged.emit(state == Qt.Checked)
+    def _on_download_clicked(self):
+        """下载按钮点击处理"""
+        self.download_clicked.emit(self.resource.get_id())
         
-    def set_checked(self, checked):
+    def set_selected(self, selected: bool):
         """设置选中状态"""
-        self.checkbox.setChecked(checked)
+        self.select_btn.setChecked(selected)
         
-    def is_checked(self):
-        """获取选中状态"""
-        return self.checkbox.isChecked()
+    def get_resource(self) -> Resource:
+        """获取资源对象"""
+        return self.resource

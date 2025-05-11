@@ -10,9 +10,14 @@
 from typing import Dict, List, Optional
 from datetime import datetime
 import logging
-import requests
-from src.core.group import Group
-from src.core.xiaoya_login_manager import XiaoyaLoginManager
+try:
+    # When imported as a module
+    from .group import Group
+    from .xiaoya_login_manager import XiaoyaLoginManager
+except ImportError:
+    # When run as a standalone script
+    from group import Group
+    from xiaoya_login_manager import XiaoyaLoginManager
 
 # 配置日志
 logging.basicConfig(
@@ -208,3 +213,17 @@ class GroupManager:
     def __str__(self) -> str:
         """字符串表示"""
         return f"GroupManager(groups: {len(self.groups)}, resources: {self.get_total_resource_count()})"
+
+
+if __name__ == "__main__":
+    # 测试代码
+    login_manager = XiaoyaLoginManager()
+    username = input("请输入学号: ")
+    password = input("请输入密码: ")
+    login_manager.login(username, password)
+
+    group_manager = GroupManager(login_manager=login_manager)
+    print(group_manager)
+    print(f"课程组数量: {group_manager.get_group_count()}")
+    print(f"资源总数: {group_manager.get_total_resource_count()}")
+    print(f"最后更新时间: {group_manager.get_last_update_time()}")
