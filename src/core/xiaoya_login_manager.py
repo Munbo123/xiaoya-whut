@@ -37,7 +37,7 @@ class XiaoyaLoginManager:
         self.session.cookies.set('WT-prd-language', 'zh-CN', domain='infra.ai-augmented.com')
         self.session.cookies.set('WT-prd-teaching-schoolId', '0', domain='infra.ai-augmented.com')
         # 默认请求头
-        self.default_headers = {
+        self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
             'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
@@ -83,6 +83,8 @@ class XiaoyaLoginManager:
             # 步骤10: 完成最终回调
             self._complete_final_callback(callback_url)
             
+            self.headers['Authorization'] = self.get_WT_prd_acess_token()
+
             logger.info("登录成功")
             return self.session
             
@@ -105,7 +107,7 @@ class XiaoyaLoginManager:
             "back": "https://infra.ai-augmented.com/app/auth/oauth2/login?response_type=code&state=6874up&client_id=xy_client_whut&redirect_uri=https://whut.ai-augmented.com/api/jw-starcmooc/user/authorCallback?cb=https://whut.ai-augmented.com/app/jx-web/mycourse&school=10497&lang=zh_CN"
         }
         
-        headers = self.default_headers.copy()
+        headers = self.headers.copy()
         headers.update({
             'Cache-Control': 'no-cache',
             'Pragma': 'no-cache',
@@ -154,7 +156,7 @@ class XiaoyaLoginManager:
         service_param = "https://infra.ai-augmented.com/api/auth/cas/login?school_certify=10497"
         login_page_url = f"https://zhlgd.whut.edu.cn/tpass/login?service={urllib.parse.quote(service_param)}"
         
-        headers = self.default_headers.copy()
+        headers = self.headers.copy()
         
         logger.info("步骤2-3: 获取登录表单参数")
         try:
@@ -214,7 +216,7 @@ class XiaoyaLoginManager:
         url = "https://zhlgd.whut.edu.cn/tpass/rsa"
         params = {"skipWechat": "true"}
         
-        headers = self.default_headers.copy()
+        headers = self.headers.copy()
         headers.update({
             'Accept': 'application/json, text/javascript, */*; q=0.01',
             'X-Requested-With': 'XMLHttpRequest',
@@ -284,7 +286,7 @@ class XiaoyaLoginManager:
         # 合并其他表单参数（lt, execution, _eventId等）
         login_data.update(form_params)
         
-        headers = self.default_headers.copy()
+        headers = self.headers.copy()
         headers.update({
             'Content-Type': 'application/x-www-form-urlencoded',
             'Origin': 'https://zhlgd.whut.edu.cn',
@@ -327,7 +329,7 @@ class XiaoyaLoginManager:
         """处理CAS登录URL，获取state并处理第6-7步重定向"""
         logger.info("步骤6-7: 处理CAS登录URL获取state")
         
-        headers = self.default_headers.copy()
+        headers = self.headers.copy()
         headers.update({
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
             'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
@@ -379,7 +381,7 @@ class XiaoyaLoginManager:
         
         # 1. 先访问安全提示页面 (securityNotice)
         logger.info("访问安全提示页面...")
-        security_headers = self.default_headers.copy()
+        security_headers = self.headers.copy()
         security_headers.update({
             'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
             'Referer': 'https://zhlgd.whut.edu.cn/',
@@ -395,7 +397,7 @@ class XiaoyaLoginManager:
             logger.info("访问授权重定向API...")
             redirect_api_url = "https://infra.ai-augmented.com/api/auth/oauth/onAccountAuthRedirect"
             
-            redirect_headers = self.default_headers.copy()
+            redirect_headers = self.headers.copy()
             redirect_headers.update({
                 'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
                 'Referer': redirect_url,
@@ -432,7 +434,7 @@ class XiaoyaLoginManager:
         """完成最终回调，步骤10"""
         logger.info("步骤10: 访问最终回调URL...")
         
-        headers = self.default_headers.copy()
+        headers = self.headers.copy()
         headers.update({
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Referer': 'https://infra.ai-augmented.com/',
@@ -517,6 +519,20 @@ class XiaoyaLoginManager:
         for name, value in cookies.items():
             print(f"{name}: {value}")
 
+    def get_WT_prd_acess_token(self):
+        """获取WT-prd-access-token"""
+        cookies = self.session.cookies.get_dict()
+        token = cookies.get('WT-prd-access-token')
+        return 'Bearer ' + token if token else None
+
+    def get_session(self):
+        """获取当前会话"""
+        return self.session
+
+    def get_headers(self):
+        """获取当前请求头"""
+        return self.headers
+
 if __name__ == "__main__":
     import getpass
     
@@ -541,5 +557,7 @@ if __name__ == "__main__":
         # 输出获取到的所有cookie
         login_manager.print_cookies()
         
+        print(login_manager.get_headers())
+
     except Exception as e:
         print(f"\n登录失败: {e}")

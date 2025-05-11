@@ -70,6 +70,15 @@ class AutoWatcher:
             return False
 
 
+    def watch_document(self, group_id, path_id) -> bool:
+        """
+        自动观看文档
+
+        Args:
+            video_id (str): 视频ID
+        """
+
+
     def _commit_duration(self, path_id) -> None:
         """
         提交观看时长

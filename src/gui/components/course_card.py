@@ -18,7 +18,6 @@ class CourseCard(QFrame):
     """
     # 定义信号
     clicked = Signal(str)  # 卡片被点击时发出信号，传递课程ID
-    actionTriggered = Signal(str, str)  # 动作被触发时发出信号，传递课程ID和动作类型
     
     def __init__(self, course_id="", course_name="", teacher_name="", semester="", dept_name="", views=0, students=0, image_path=None, parent=None):
         super().__init__(parent)
@@ -36,6 +35,10 @@ class CourseCard(QFrame):
         self.views = views
         self.students = students
         self.image_path = image_path
+        
+        # 设置可以接收鼠标事件
+        self.setMouseTracking(True)
+        self.setCursor(Qt.PointingHandCursor)
         
         # 设置卡片样式
         self.setup_ui()
@@ -193,9 +196,10 @@ class CourseCard(QFrame):
         
 
     def mousePressEvent(self, event):
-        """鼠标按下事件，发出卡片点击信号"""
+        """鼠标按下事件处理"""
+        if event.button() == Qt.LeftButton:
+            self.clicked.emit(self.course_id)
         super().mousePressEvent(event)
-        self.clicked.emit(self.course_id)
         
         
     def update_info(self, course_id="", course_name="", teacher_name="", semester="", dept_name="", views=0, students=0, image_path=None):

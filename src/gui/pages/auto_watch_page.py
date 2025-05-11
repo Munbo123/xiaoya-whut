@@ -227,7 +227,7 @@ class AutoWatchPage(QWidget):
         
         # 连接课程卡片信号
         self.course_grid.courseSelected.connect(self.on_course_selected)
-        self.course_grid.courseActionTriggered.connect(self.on_course_action)
+
         
         # 添加课程网格到主布局
         main_layout.addWidget(self.course_grid)
