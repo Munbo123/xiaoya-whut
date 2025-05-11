@@ -11,6 +11,10 @@ import requests
 import logging
 import json
 from datetime import datetime
+try:
+    from .xiaoya_login_manager import XiaoyaLoginManager  # When imported as a package
+except ImportError:
+    from xiaoya_login_manager import XiaoyaLoginManager  # When run as a script
 
 # 配置日志
 logging.basicConfig(
@@ -25,23 +29,18 @@ class UserInfoManager:
     # 头像URL的基础域名
     AVATAR_BASE_URL = "https://whut.ai-augmented.com/api/jx-oresource"
     
-    def __init__(self, session=None):
+    def __init__(self, login_manager:XiaoyaLoginManager=None):
         """
         初始化用户信息管理器，并立即获取用户信息
         
         Args:
-            session (requests.Session, optional): 已登录的会话对象
+            login_manager (XiaoyaLoginManager): 已登录的登录管理器对象
         """
-        self.session = session if session else requests.Session()
+        self.login_manager = login_manager if login_manager else XiaoyaLoginManager()
         # 默认请求头
-        self.default_headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36',
-            'Accept': 'application/json, text/plain, */*',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Referer': 'https://whut.ai-augmented.com/app/jx-web/mycourse',
-        }
-        
+        self.session = self.login_manager.get_session()
+        self.headers = self.login_manager.get_headers()
+
         # 用户信息存储
         self.user_data = {
             "basic_info": {},      # 基本信息(用户名、头像、学校等)
@@ -50,7 +49,7 @@ class UserInfoManager:
         }
         
         # 如果提供了session，则立即获取用户信息
-        if session:
+        if self.session:
             self.refresh_info()
     
     def refresh_info(self):
@@ -85,24 +84,9 @@ class UserInfoManager:
         logger.info("获取用户基本信息")
         
         try:
-            # 获取access_token
-            access_token = None
-            for cookie in self.session.cookies:
-                if cookie.name == 'WT-prd-access-token':
-                    access_token = cookie.value
-                    break
-            
-            if not access_token:
-                logger.error("未找到access_token")
-                return False
-                
-            # 准备请求头
-            headers = self.default_headers.copy()
-            headers['Authorization'] = f'Bearer {access_token}'
-            
             # 1. 获取OAuth2用户信息
             oauth_url = "https://whut.ai-augmented.com/api/jx-auth/oauth2/info"
-            oauth_response = self.session.get(oauth_url, headers=headers)
+            oauth_response = self.session.get(oauth_url, headers=self.headers)
             
             if oauth_response.status_code != 200:
                 logger.error(f"获取OAuth2用户信息失败，状态码: {oauth_response.status_code}")
@@ -115,7 +99,7 @@ class UserInfoManager:
             
             # 2. 获取详细用户信息
             detail_url = "https://whut.ai-augmented.com/api/jw-starcmooc/user/currentUserInfo"
-            detail_response = self.session.get(detail_url, headers=headers)
+            detail_response = self.session.get(detail_url, headers=self.headers)
             
             if detail_response.status_code != 200:
                 logger.error(f"获取详细用户信息失败，状态码: {detail_response.status_code}")
@@ -275,12 +259,18 @@ class UserInfoManager:
         if not self.is_info_loaded():
             return "用户信息未加载"
         
-        return f"用户: {self.get_nickname()}, 学校: {self.get_school_name()}"
-
-
 if __name__ == "__main__":
     # 测试代码
-    from src.core.xiaoya_login_manager import XiaoyaLoginManager
+    import sys
+    import os
+    # 添加当前目录到路径，确保可以找到xiaoya_login_manager模块
+    sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    # 添加项目根目录到路径
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+    from xiaoya_login_manager import XiaoyaLoginManager
+    import os
+    sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))  # 添加项目根目录到路径
+    from xiaoya_login_manager import XiaoyaLoginManager
     import getpass
     
     # 创建登录管理器
@@ -293,10 +283,10 @@ if __name__ == "__main__":
     
     try:
         # 执行登录流程
-        session = login_manager.login(username, password)
+        login_manager.login(username, password)
         
         # 获取用户信息
-        user_info_manager = UserInfoManager(session)
+        user_info_manager = UserInfoManager(login_manager=login_manager)
         
         if user_info_manager.is_info_loaded():
             print("\n用户信息获取成功！")

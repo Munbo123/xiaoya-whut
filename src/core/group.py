@@ -153,6 +153,14 @@ class Group:
         """获取访问次数"""
         return self.visit_number
     
+    def get_visit_number(self) -> int:
+        """获取访问次数（别名）"""
+        return self.visit_number
+    
+    def get_cover_img(self) -> str:
+        """获取封面图片URL（别名）"""
+        return self.cover_img
+
     def get_cover_image(self) -> str:
         """获取封面图片URL"""
         return self.cover_img

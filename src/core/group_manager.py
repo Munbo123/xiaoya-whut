@@ -12,6 +12,7 @@ from datetime import datetime
 import logging
 import requests
 from src.core.group import Group
+from src.core.xiaoya_login_manager import XiaoyaLoginManager
 
 # 配置日志
 logging.basicConfig(
@@ -23,16 +24,16 @@ logger = logging.getLogger('xiaoya.group_manager')
 class GroupManager:
     """管理小雅平台所有课程组"""
     
-    def __init__(self, session: requests.Session, headers: Dict):
+    def __init__(self, login_manager:XiaoyaLoginManager=None):
         """
         初始化课程组管理器
         
         Args:
-            session (requests.Session): 用于发送请求的session对象
-            headers (Dict): 请求头
+            login_manager (XiaoyaLoginManager): 登录管理器对象
         """
-        self.session = session
-        self.headers = headers
+        self.login_manager = login_manager
+        self.session = login_manager.get_session()
+        self.headers = login_manager.get_headers()
         self.groups: Dict[str, Group] = {}  # 以课程组ID为键存储Group对象
         self.last_update: Optional[datetime] = None
         

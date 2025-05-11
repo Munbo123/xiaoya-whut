@@ -14,7 +14,7 @@ import qtawesome as qta
 from src.gui.components.resource_tree import ResourceTree
 
 
-class CourseResourcePage(QWidget):
+class ResourceDownloadPage(QWidget):
     """课程资源下载页面"""
     
     def __init__(self, course=None, parent=None):

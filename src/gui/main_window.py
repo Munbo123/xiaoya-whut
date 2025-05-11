@@ -22,38 +22,37 @@ from src.gui.components.title_bar import TitleBar  # 导入自定义标题栏
 
 import keyring
 from src.core.xiaoya_login_manager import XiaoyaLoginManager
-from src.core.user_info import UserInfoManager
-from src.core.course_manager import CourseManager
+from src.core.user_info_manager import UserInfoManager
+from src.core.group_manager import GroupManager  # 更新为新的GroupManager
 from src.gui.components.login_dialog import KEYRING_SERVICE, USERNAME_KEY
 
 class LoginThread(QThread):
     """处理异步登录的线程类"""
-    login_success = Signal(object, object, object)  # session, user_info_manager, course_manager
+    login_success = Signal(object, object, object)  # login_manager, user_info_manager, group_manager
     login_failed = Signal(str)  # error message
 
     def __init__(self, username=None, password=None):
         super().__init__()
         self.username = username
         self.password = password
+        self.login_manager = None
 
     def run(self):
         try:
             # 创建登录管理器并执行登录
-            login_manager = XiaoyaLoginManager()
-            session = None
+            self.login_manager = XiaoyaLoginManager()
             
             if self.username and self.password:
-                session = login_manager.login(self.username, self.password)
+                self.login_manager.login(self.username, self.password)
             
-            if session:
-                # 创建用户信息管理器
-                user_info_manager = UserInfoManager(session)
-                if user_info_manager.is_info_loaded():
-                    # 创建课程管理器
-                    course_manager = CourseManager(session)
-                    if course_manager.refresh_courses():
-                        self.login_success.emit(session, user_info_manager, course_manager)
-                        return
+
+            # 创建用户信息管理器
+            user_info_manager = UserInfoManager(login_manager=self.login_manager)
+            if user_info_manager.is_info_loaded():
+                # 创建新的课程组管理器
+                group_manager = GroupManager(login_manager=self.login_manager)
+                self.login_success.emit(self.login_manager, user_info_manager, group_manager)
+                return
             
             self.login_failed.emit("登录失败或未找到保存的登录信息")
         except Exception as e:
@@ -72,9 +71,9 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.container)
 
         # 创建成员变量
-        self.session = None
+        self.login_manager = None
         self.user_info_manager = None
-        self.course_manager = None
+        self.group_manager = None
         self.login_thread = None
         
         # 初始化UI
@@ -91,7 +90,7 @@ class MainWindow(QMainWindow):
         
         # 尝试自动登录
         self.auto_login()
-
+        
     def init_base_ui(self):
         """初始化基础UI组件"""
         # 创建主布局
@@ -142,25 +141,25 @@ class MainWindow(QMainWindow):
         """连接信号和槽"""
         self.settings_page.login_success.connect(self.on_manual_login_success)
 
-    def on_manual_login_success(self, session, user_info_manager, course_manager):
+    def on_manual_login_success(self, login_manager, user_info_manager, group_manager):
         """手动登录成功的处理函数"""
-        self.session = session
+        self.login_manager = login_manager
         self.user_info_manager = user_info_manager
-        self.course_manager = course_manager
-        self.update_course_manager(course_manager)
+        self.group_manager = group_manager
+        self.update_group_manager(group_manager)
         self.status_label.setText("已登录")
 
-    def on_auto_login_success(self, session, user_info_manager, course_manager):
+    def on_auto_login_success(self, login_manager, user_info_manager, group_manager):
         """自动登录成功的处理函数"""
-        self.session = session
+        self.login_manager = login_manager
         self.user_info_manager = user_info_manager
-        self.course_manager = course_manager
-        self.update_course_manager(course_manager)
+        self.group_manager = group_manager
+        self.update_group_manager(group_manager)
         self.status_label.setText("自动登录成功")
         
         # 更新账户部件
         self.settings_page.account_widget.handle_login_success(
-            session, user_info_manager, course_manager
+            login_manager, user_info_manager, group_manager
         )
 
     def on_login_failed(self, error_message):
@@ -432,10 +431,10 @@ class MainWindow(QMainWindow):
         else:
             event.ignore()
 
-    def update_course_manager(self, course_manager):
-        """更新所有页面的课程管理器"""
-        self.download_page.course_grid.course_manager = course_manager
-        self.auto_watch_page.course_grid.course_manager = course_manager
+    def update_group_manager(self, group_manager):
+        """更新所有页面的课程组管理器"""
+        self.download_page.course_grid.group_manager = group_manager
+        self.auto_watch_page.course_grid.group_manager = group_manager
         # 重新加载课程数据
         self.download_page.course_grid.load_courses()
         self.auto_watch_page.course_grid.load_courses()

@@ -21,14 +21,14 @@ class AccountWidget(QWidget):
     """账户设置页面"""
     
     logout_signal = Signal()  # 用于通知主窗口用户已退出登录
-    login_success = Signal(object)  # 用于通知主窗口登录成功，传递course_manager对象
+    login_success = Signal(object, object, object)  # 用于通知主窗口登录成功，传递(login_manager, user_info_manager, group_manager)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.network_manager = QNetworkAccessManager(self)
         self.user_info_manager = None  # 用户信息管理器实例
         self.is_logging_in = False  # 登录中状态标记
-        self.course_manager = None
+        self.group_manager = None  # 改为group_manager
         self.init_ui()
         self.update_ui()
     
@@ -213,7 +213,7 @@ class AccountWidget(QWidget):
             
             # 加载头像
             avatar_url = self.user_info_manager.get_avatar_url()
-            if avatar_url:
+            if (avatar_url):
                 self.load_avatar(avatar_url)
             else:
                 self.avatar_label.setPixmap(self.default_avatar)
@@ -244,14 +244,13 @@ class AccountWidget(QWidget):
         dialog.login_success.connect(self.handle_login_success)
         if dialog.exec() == LoginDialog.Accepted:
             self.login_signal.emit()
-    
-    def handle_login_success(self, session, user_info_manager, course_manager):
+    def handle_login_success(self, login_manager, user_info_manager, group_manager):
         """处理登录成功"""
         self.user_info_manager = user_info_manager
-        self.course_manager = course_manager
+        self.group_manager = group_manager
         self.update_ui()
-        # 发送登录成功信号，传递course_manager对象
-        self.login_success.emit(course_manager)
+        # 发送登录成功信号，传递三个管理器对象
+        self.login_success.emit(login_manager, user_info_manager, group_manager)
     
     def logout(self):
         """退出登录"""
@@ -351,7 +350,6 @@ class GeneralWidget(QWidget):
         if folder_path:
             self.download_path_edit.setText(folder_path)
 
-
 class AboutWidget(QWidget):
     """关于页面"""
     
@@ -432,11 +430,10 @@ class AboutWidget(QWidget):
         # 添加垂直空白
         layout.addStretch(1)
 
-
 class SettingsPage(QWidget):
     """设置页面"""
     
-    login_success = Signal(object)  # 用于传递 course_manager
+    login_success = Signal(object, object, object)  # 用于传递(login_manager, user_info_manager, group_manager)
     
     def __init__(self, parent=None):
         super().__init__(parent)

@@ -242,11 +242,15 @@ class CourseCard(QFrame):
             return
             
         request = QNetworkRequest(QUrl(url))
-        reply = self.network_manager.get(request)
-        reply.finished.connect(lambda: self._handle_network_response(reply))
+        self.current_reply = self.network_manager.get(request)  # 保存当前请求的引用
+        self.current_reply.finished.connect(self._handle_network_response)
 
-    def _handle_network_response(self, reply):
+    def _handle_network_response(self):
         """处理网络请求响应"""
+        reply = self.current_reply  # 使用保存的请求引用
+        if not reply or not self.image_label:  # 检查组件是否还存在
+            return
+            
         if reply.error() == QNetworkReply.NoError:
             # 读取图片数据
             data = reply.readAll()
@@ -254,20 +258,21 @@ class CourseCard(QFrame):
             if pixmap.loadFromData(data):
                 # 缩放图片并设置到标签
                 scaled_pixmap = pixmap.scaled(300, 150, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-                self.image_label.setPixmap(scaled_pixmap)
+                if self.image_label and not self.image_label.isHidden():  # 再次检查标签是否有效
+                    self.image_label.setPixmap(scaled_pixmap)
         else:
-            print(f"Error loading image: {reply.errorString()}")
-            # 设置默认图片样式
-            self.image_label.setText("课程图片")
-            self.image_label.setStyleSheet("""
-                QLabel {
-                    background-color: #3498db;
-                    color: white;
-                    border-top-left-radius: 8px;
-                    border-top-right-radius: 8px;
-                    font-weight: bold;
-                    font-size: 16px;
-                }
-            """)
+            if self.image_label and not self.image_label.isHidden():  # 检查标签是否有效
+                self.image_label.setText("课程图片")
+                self.image_label.setStyleSheet("""
+                    QLabel {
+                        background-color: #3498db;
+                        color: white;
+                        border-top-left-radius: 8px;
+                        border-top-right-radius: 8px;
+                        font-weight: bold;
+                        font-size: 16px;
+                    }
+                """)
         
         reply.deleteLater()
+        self.current_reply = None  # 清除请求引用

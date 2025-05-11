@@ -11,15 +11,14 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, Slot
 
 from src.gui.components.course_card_grid import CourseCardGrid
-from src.gui.pages.course_resource_page import CourseResourcePage
-
+from src.gui.pages.resource_download_page import ResourceDownloadPage
 
 class DownloadPage(QWidget):
     """资源下载页面，用于下载小雅平台上的课程资源"""
     
-    def __init__(self, course_manager=None):
+    def __init__(self, group_manager=None):
         super().__init__()
-        self.course_manager = course_manager
+        self.group_manager = group_manager
         self.init_ui()
     
     def init_ui(self):
@@ -47,7 +46,7 @@ class DownloadPage(QWidget):
         courses_layout.addWidget(line)
         
         # 课程卡片网格视图
-        self.course_grid = CourseCardGrid(self.course_manager)
+        self.course_grid = CourseCardGrid(self.group_manager)
         self.course_grid.courseSelected.connect(self.on_course_selected)
         courses_layout.addWidget(self.course_grid)
         
@@ -55,33 +54,33 @@ class DownloadPage(QWidget):
         self.stack.addWidget(self.courses_page)
         
     @Slot(str)
-    def on_course_selected(self, course_id):
+    def on_course_selected(self, group_id):
         """课程被选择的处理函数"""
-        print(f"课程被选择，ID: {course_id}")  # 调试信息
+        print(f"课程被选择，ID: {group_id}")  # 调试信息
         
-        if not self.course_manager:
-            print("未找到 course_manager")  # 调试信息
+        if not self.group_manager:
+            print("未找到 group_manager")  # 调试信息
             return
         
-        course = self.course_manager.get_course_by_id(course_id)
+        group = self.group_manager.get_group_by_id(group_id)
 
-        if course:
-            print(f"找到课程: {course.get_name()}")  # 调试信息
+        if group:
+            print(f"找到课程: {group.get_name()}")  # 调试信息
         else:
-            print(f"未找到课程，ID: {course_id}")  # 调试信息
+            print(f"未找到课程，ID: {group_id}")  # 调试信息
 
-        if course:
+        if group:
             # 创建并显示资源下载页面
-            resource_page = CourseResourcePage(course)
+            resource_page = ResourceDownloadPage(group)
             self.stack.addWidget(resource_page)
             self.stack.setCurrentWidget(resource_page)
-            
-            # 如果返回按钮被点击，切换回课程列表页面
+              # 如果返回按钮被点击，切换回课程列表页面
             def on_back():
                 self.stack.setCurrentWidget(self.courses_page)
                 # 删除资源页面以释放内存
                 self.stack.removeWidget(resource_page)
                 resource_page.deleteLater()
                 
+            # 连接返回按钮的点击信号
             resource_page.findChild(QPushButton).clicked.connect(on_back)
 

@@ -13,6 +13,7 @@ from PySide6.QtCore import Qt, Signal, Slot, QSize
 from PySide6.QtGui import QIcon, QMovie
 
 from src.gui.components.course_card import CourseCard
+from src.core.group import Group
 
 
 class CourseCardGrid(QWidget):
@@ -20,9 +21,9 @@ class CourseCardGrid(QWidget):
     
     courseSelected = Signal(str)  # 课程被选择时发出信号
     
-    def __init__(self, course_manager=None, parent=None):
+    def __init__(self, group_manager=None, parent=None):
         super().__init__(parent)
-        self.course_manager = course_manager
+        self.group_manager = group_manager
         self.loading = False
         self.init_ui()
         
@@ -39,8 +40,8 @@ class CourseCardGrid(QWidget):
         # 学期筛选
         self.semester_combo = QComboBox()
         self.semester_combo.addItem("全部学期")
-        if self.course_manager:
-            for term in self.course_manager.get_all_terms():
+        if self.group_manager:
+            for term in self.group_manager.get_all_terms():
                 self.semester_combo.addItem(term)
         filter_layout.addWidget(QLabel("学期:"))
         filter_layout.addWidget(self.semester_combo)
@@ -138,11 +139,11 @@ class CourseCardGrid(QWidget):
         """隐藏加载状态"""
         self.loading = False
         self.stack.setCurrentWidget(self.scroll_area)
-        self.update_buttons_state()
+        self.update_buttons_state()    
 
     def update_buttons_state(self):
         """更新按钮状态"""
-        enabled = not self.loading and self.course_manager is not None
+        enabled = not self.loading and self.group_manager is not None
         self.search_btn.setEnabled(enabled)
         self.refresh_btn.setEnabled(enabled)
         self.semester_combo.setEnabled(enabled)
@@ -150,16 +151,16 @@ class CourseCardGrid(QWidget):
         self.search_edit.setEnabled(enabled)
 
     def load_courses(self):
-        """从CourseManager加载课程数据"""
+        """从GroupManager加载课程数据"""
         self.show_loading()
         self.clear_grid()
         
-        if not self.course_manager:
+        if not self.group_manager:
             self.show_loading("请登录以获取课程信息")
             return
             
-        courses = self.course_manager.get_all_courses()
-        if not courses:
+        groups:list[Group] = self.group_manager.get_all_groups()
+        if not groups:
             self.show_loading("暂无课程信息")
             return
             
@@ -168,23 +169,23 @@ class CourseCardGrid(QWidget):
         status = self.status_combo.currentText()
         search_text = self.search_edit.text().strip().lower()
         
-        # 过滤课程
+        # 过滤课程组
         if semester != "全部学期":
-            courses = [c for c in courses if c.get_term() == semester]
+            groups = [g for g in groups if g.get_term() == semester]
             
         if status != "全部状态":
             if status == "进行中":
-                courses = [c for c in courses if c.is_active()]
+                groups = [g for g in groups if g.is_active()]
             else:
-                courses = [c for c in courses if not c.is_active()]
+                groups = [g for g in groups if not g.is_active()]
                 
         if search_text:
-            courses = [c for c in courses if 
-                      search_text in c.get_name().lower() or 
-                      any(search_text in t.lower() for t in c.get_teachers())]
+            groups = [g for g in groups if 
+                      search_text in g.get_name().lower() or 
+                      any(search_text in t.lower() for t in g.get_teachers())]
         
         # 如果筛选后没有课程
-        if not courses:
+        if not groups:
             self.show_loading("未找到符合条件的课程")
             return
 
@@ -192,16 +193,16 @@ class CourseCardGrid(QWidget):
         row, col = 0, 0
         max_cols = 3  # 每行最多显示3个卡片
         
-        for course in courses:
+        for group in groups:
             card = CourseCard(
-                course_id=course.get_id(),
-                course_name=course.get_name(),
-                teacher_name=", ".join(course.get_teachers()),
-                semester=course.get_term(),
-                dept_name=course.get_department(),
-                views=course.get_visit_number(),
-                students=course.get_member_count(),
-                image_path=course.get_cover_img()
+                course_id=group.get_id(),
+                course_name=group.get_name(),
+                teacher_name=", ".join(group.get_teachers()),
+                semester=group.get_term(),
+                dept_name=group.get_department(),
+                views=group.get_visit_number(),
+                students=group.get_member_count(),
+                image_path=group.get_cover_img()
             )
             
             # 连接卡片信号
@@ -233,12 +234,12 @@ class CourseCardGrid(QWidget):
     def search_courses(self):
         """搜索课程"""
         self.load_courses()
-    
+
     @Slot()
     def refresh_courses(self):
         """刷新课程列表"""
-        if self.course_manager:
-            self.course_manager.refresh_courses()
+        if self.group_manager:
+            self.group_manager.refresh_groups()
         self.load_courses()
     
     @Slot(str)

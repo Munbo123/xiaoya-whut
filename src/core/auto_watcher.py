@@ -13,7 +13,7 @@ import time
 import logging
 
 from signature_helper import SignatureHelper
-
+from xiaoya_login_manager import XiaoyaLoginManager
 
 # 配置日志
 logging.basicConfig(
@@ -31,26 +31,16 @@ class AutoWatcher:
     该类用于自动完成视频和文档等任务
     """
 
-    def __init__(self, session=None):
+    def __init__(self, login_manager:XiaoyaLoginManager=None):
         """
         初始化自动观看器
 
         Args:
-            session (requests.Session, optional): 已登录的会话对象
+            login_manager (XiaoyaLoginManager): 已登录的登录管理器对象
         """
-        self.session = session if session else requests.Session()
-        # 默认请求头
-        self.headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, Gecko) Chrome/115.0.0.0 Safari/537.36',
-            'Accept': 'application/json, text/plain, */*',
-            'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
-        }
-
-        for key, value in self.session.cookies.items():
-            if key == 'WT-prd-access-token':
-                self.headers['Authorization'] = f'Bearer {value}'
-                break
+        self.login_manager = login_manager if login_manager else XiaoyaLoginManager()
+        self.session = self.login_manager.get_session()
+        self.headers = self.login_manager.get_headers()
 
     
     def watch_video(self, group_id, path_id) -> bool:
@@ -89,7 +79,7 @@ class AutoWatcher:
         # 获取video_id和duration
         url1 = f'https://whut.ai-augmented.com/api/jx-iresource/resource/queryResource?node_id={path_id}'
 
-        response = requests.get(url1, headers=self.headers)
+        response = self.session.get(url1, headers=self.headers)
 
         video_id = response.json()['data']['resource']['video_id']
         duration = response.json()['data']['resource']['duration']
@@ -115,7 +105,7 @@ class AutoWatcher:
 
 
         target_url = f'https://whut.ai-augmented.com/api/jx-iresource/vod/duration/{path_id}/v2'
-        response = requests.post(target_url, headers=self.headers, json=data)
+        response = self.session.post(target_url, headers=self.headers, json=data)
 
         if response.status_code == 200:
             logger.info(f"提交观看时长成功: {response.json()}")
@@ -133,12 +123,12 @@ class AutoWatcher:
         """
         # 获取固定的assign_id
         url = f'https://whut.ai-augmented.com/api/jx-iresource/resource/task/studenFinishInfo?group_id={group_id}&node_id={path_id}'
-        response = requests.get(url, headers=self.headers)
+        response = self.session.get(url, headers=self.headers)
         assign_id = response.json()['data']['assign_id']
 
         # 获取任务id
         url = f'https://whut.ai-augmented.com/api/jx-iresource/resource/queryResource?node_id={path_id}'
-        response = requests.get(url, headers=self.headers)
+        response = self.session.get(url, headers=self.headers)
         task_id = response.json()['data']['task_id']
 
         # 提交任务
@@ -149,7 +139,7 @@ class AutoWatcher:
             'media_id': path_id,
             'task_id': task_id,
         }
-        response = requests.post(target_url, headers=self.headers, json=data)
+        response = self.session.post(target_url, headers=self.headers, json=data)
 
         if response.json()['data']['status'] == 0:
             logger.info(f"自动观看成功: {response.json()}")
@@ -166,10 +156,10 @@ if __name__ == "__main__":
     login_manager = XiaoyaLoginManager()
     username = input("请输入用户名: ")
     password = input("请输入密码: ")
-    session = login_manager.login(username, password)
+    login_manager.login(username, password)
 
     # 创建自动观看器
-    auto_watcher = AutoWatcher(session=session)
+    auto_watcher = AutoWatcher(login_manager=login_manager)
     # 获取课程ID和视频路径ID
     group_id = '6630748513288344594'
     path_id = '6661019185897825952'

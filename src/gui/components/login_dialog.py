@@ -15,8 +15,8 @@ import keyring
 import qtawesome as qta
 
 from src.core.xiaoya_login_manager import XiaoyaLoginManager
-from src.core.user_info import UserInfoManager
-from src.core.course_manager import CourseManager
+from src.core.user_info_manager import UserInfoManager
+from src.core.group_manager import GroupManager
 
 # 服务名称常量
 KEYRING_SERVICE = "xiaoya-whut"
@@ -25,7 +25,7 @@ USERNAME_KEY = "username"
 class LoginDialog(QDialog):
     """登录对话框"""
     
-    login_success = Signal(requests.Session, UserInfoManager, CourseManager)  # 登录成功信号
+    login_success = Signal(XiaoyaLoginManager, UserInfoManager, GroupManager)  # 登录成功信号
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -217,20 +217,18 @@ class LoginDialog(QDialog):
             
             # 创建登录管理器并执行登录
             login_manager = XiaoyaLoginManager()
-            session = login_manager.login(username, password)
+            login_manager.login(username, password)
+
             
-            if not session:
-                raise Exception("登录失败")
-            
-            # 创建用户信息管理器
-            user_info_manager = UserInfoManager(session)
+            # 创建用户信息管理器和课组管理器
+            user_info_manager = UserInfoManager(login_manager=login_manager)
             if not user_info_manager.is_info_loaded():
                 raise Exception("获取用户信息失败")
             
-            # 创建课程管理器
-            course_manager = CourseManager(session)
-            if not course_manager.refresh_courses():
-                raise Exception("获取课程信息失败")
+            # 创建课组管理器
+            group_manager = GroupManager(login_manager=login_manager)
+            if not group_manager.refresh_groups():
+                raise Exception("获取课组信息失败")
             
             # 如果勾选了记住密码，使用keyring保存凭据
             if self.remember_check.isChecked():
@@ -249,9 +247,25 @@ class LoginDialog(QDialog):
                     pass
             
             # 发送登录成功信号
-            self.login_success.emit(session, user_info_manager, course_manager)
+            self.login_success.emit(login_manager, user_info_manager, group_manager)
             
         except Exception as e:
             self.login_btn.setEnabled(True)
             self.login_btn.setText("登录")
             QMessageBox.critical(self, "错误", f"登录失败: {str(e)}")
+    
+    def _on_login_success(self, session):
+        """登录成功后的处理"""
+        # 创建登录管理器和用户信息管理器
+        login_manager = XiaoyaLoginManager(session, self._username)
+        user_info_manager = UserInfoManager(session)
+        group_manager = GroupManager(session)
+
+        # 保存用户名和密码
+        if self._save_password_checkbox.isChecked():
+            keyring.set_password(KEYRING_SERVICE, USERNAME_KEY, self._username)
+            keyring.set_password(KEYRING_SERVICE, self._username, self._password)
+
+        # 发送登录成功信号
+        self.login_success.emit(login_manager, user_info_manager, group_manager)
+        self.accept()
