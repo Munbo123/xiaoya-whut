@@ -18,7 +18,6 @@ class ResourceItem(QWidget):
     """资源项组件，显示单个资源项"""
     
     selected = Signal(bool, str)  # 选中状态改变信号(是否选中, 资源ID)
-    download_clicked = Signal(str)  # 下载按钮点击信号(资源ID)
     
     def __init__(self, resource: Resource, parent=None):
         super().__init__(parent)
@@ -83,7 +82,9 @@ class ResourceItem(QWidget):
         
     def _on_download_clicked(self):
         """下载按钮点击处理"""
-        self.download_clicked.emit(self.resource.get_id())
+        # 直接下载，不进行信号传递，减小复杂度
+        # 直接调用下载函数
+        print(f'弹出下载界面：{self.resource.get_name()} {self.resource.get_id()}')
         
     def set_selected(self, selected: bool):
         """设置选中状态"""

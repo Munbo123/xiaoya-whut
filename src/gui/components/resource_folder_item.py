@@ -84,7 +84,10 @@ class ResourceFolderItem(QWidget):
         
     def _on_toggle_clicked(self):
         """展开/收起按钮点击处理"""
+        print("Toggle clicked")
+        print(f"当前状态: {self.is_expanded}")
         self.is_expanded = not self.is_expanded
+        print(f"新状态: {self.is_expanded}")
         self._update_toggle_icon()
         self.toggle.emit(self.is_expanded, self.resource.get_id())
         

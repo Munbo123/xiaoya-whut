@@ -35,9 +35,10 @@ class ResourceFolder:
         self.name = str(folder_data.get('name', ''))
         self.path = str(folder_data.get('path', ''))
         self.path_id = self.path.split('/')[-1] if self.path else self.id
-        
+        self.resource_type = folder_data.get('resource_type', -1)
+
         # 子文件夹和资源列表
-        self.sub_folders: Dict[str, 'ResourceFolder'] = {}  # 键为path_id
+        self.sub_folders: Dict[str, ResourceFolder] = {}  # 键为path_id
         self.resources: Dict[str, Resource] = {}  # 键为path_id
         
     def add_sub_folder(self, folder: 'ResourceFolder') -> None:
@@ -68,6 +69,10 @@ class ResourceFolder:
         Returns:
             Optional[ResourceFolder]: 找到的文件夹对象，如果不存在则返回None
         """
+        # 如果就是自己
+        if path_id == self.path_id:
+            return self
+
         # 先在当前层查找
         if path_id in self.sub_folders:
             return self.sub_folders[path_id]
@@ -104,26 +109,22 @@ class ResourceFolder:
     
     def get_all_resources(self) -> List[Resource]:
         """
-        获取当前文件夹及其所有子文件夹下的所有资源
+        获取当前文件夹下的所有资源
         
         Returns:
             List[Resource]: 资源对象列表
         """
         result = list(self.resources.values())
-        for folder in self.sub_folders.values():
-            result.extend(folder.get_all_resources())
         return result
     
     def get_all_sub_folders(self) -> List['ResourceFolder']:
         """
-        获取当前文件夹及其所有子文件夹
+        获取当前文件夹下的所有子文件夹
         
         Returns:
             List[ResourceFolder]: 文件夹对象列表
         """
         result = list(self.sub_folders.values())
-        for folder in self.sub_folders.values():
-            result.extend(folder.get_all_sub_folders())
         return result
     
     def get_id(self) -> str:
@@ -142,10 +143,30 @@ class ResourceFolder:
         """获取文件夹完整路径"""
         return self.path
     
+    def get_resource_type(self) -> int:
+        """获取资源类型"""
+        return self.resource_type
+
     def get_raw_data(self) -> Dict:
         """获取原始数据"""
         return self._data
         
+    def print_tree(self, level: int = 0) -> None:
+        """
+        打印文件夹树结构
+        
+        Args:
+            level (int): 当前层级
+        """
+        indent = ' ' * (level * 4)
+        logger.info(f"{indent}- {self.name} (ID: {self.id})")
+        for folder in self.sub_folders.values():
+            logging.info(f"{indent}{folder.get_name()} ")
+            folder.print_tree(level + 1)
+        for resource in self.resources.values():
+            logger.info(f"{indent}{resource.get_name()}")
+
+
     def __str__(self) -> str:
         """字符串表示"""
         return f"{self.name} (folders: {len(self.sub_folders)}, resources: {len(self.resources)})"

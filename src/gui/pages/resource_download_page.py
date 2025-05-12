@@ -15,6 +15,9 @@ from src.core.group import Group
 from src.core.resource import Resource
 from src.gui.components.resource_item import ResourceItem
 from src.gui.components.resource_folder_item import ResourceFolderItem
+from src.core.resource_tree import ResourceTree
+from src.core.resource_folder import ResourceFolder
+from src.core.resource import Resource
 
 class ResourceDownloadPage(QWidget):
     """资源下载页面"""
@@ -83,10 +86,47 @@ class ResourceDownloadPage(QWidget):
             self.content_layout.addWidget(no_resource_label)
             return
             
-        # 添加根节点的子节点
-        root_children = self.resource_tree.get_root_children()
-        for resource in root_children:
+        # 获取根节点
+        root:ResourceFolder = self.resource_tree.get_root_folders()
+        if not root:
+            # 显示无资源提示
+            no_resource_label = QLabel("该课程暂无资源")
+            no_resource_label.setAlignment(Qt.AlignCenter)
+            no_resource_label.setStyleSheet("color: #666; padding: 20px;")
+            self.content_layout.addWidget(no_resource_label)
+            return
+        
+        # 不需要显示root层级，初始界面就是root界面下的若干个文件夹和资源
+        # 添加文件夹
+        for folder in root.get_all_sub_folders():
+            self._add_reource_folder_widget(folder)
+        # 添加资源
+        for resource in root.get_all_resources():
             self._add_resource_widget(resource)
+        
+
+    def _add_reource_folder_widget(self, folder: ResourceFolder, indent_level: int = 0):
+        '''添加资源文件夹组件'''
+        # 创建文件夹组件
+        if folder.get_path_id() in self.expanded_folders:
+            widget = ResourceFolderItem(folder, expanded=True)
+        else:
+            widget = ResourceFolderItem(folder, expanded=False)
+        widget.toggle.connect(self._on_folder_toggle)
+        # 设置缩进
+        widget_layout = widget.layout()
+        widget_layout.insertSpacing(0, indent_level * 20)
+        # 添加到布局
+        self.content_layout.addWidget(widget)
+        # 如果是展开的文件夹，添加其子节点
+        if folder.get_path_id() in self.expanded_folders:
+            # 添加子文件夹
+            for child in folder.get_all_sub_folders():
+                self._add_reource_folder_widget(child, indent_level + 1)
+            # 添加资源
+            for resource in folder.get_all_resources():
+                self._add_resource_widget(resource, indent_level + 1)
+        print(f'文件夹 {folder.get_name()} 添加到布局，当前缩进级别: {indent_level}')
             
     def _add_resource_widget(self, resource: Resource, indent_level: int = 0):
         """添加资源组件
@@ -95,28 +135,18 @@ class ResourceDownloadPage(QWidget):
             resource: 资源对象
             indent_level: 缩进级别
         """
-        # 根据资源类型创建不同的组件
-        if resource.is_folder():
-            widget = ResourceFolderItem(resource)
-            widget.toggle.connect(self._on_folder_toggle)
-        else:
-            widget = ResourceItem(resource)
-            widget.download_clicked.connect(self._on_resource_download)
-        
+        # 创建资源组件
+        widget = ResourceItem(resource)
         # 设置缩进
         widget_layout = widget.layout()
         widget_layout.insertSpacing(0, indent_level * 20)
-        
         # 添加到布局
         self.content_layout.addWidget(widget)
-        
-        # 如果是展开的文件夹，添加其子节点
-        if resource.is_folder() and resource.get_id() in self.expanded_folders:
-            for child in self.resource_tree.get_children(resource.get_id()):
-                self._add_resource_widget(child, indent_level + 1)
-                
+
+
     def _on_folder_toggle(self, expanded: bool, folder_id: str):
         """文件夹展开/收起处理"""
+        print(f'文件夹 {folder_id} {"展开" if expanded else "收起"}')
         if expanded:
             self.expanded_folders.add(folder_id)
         else:
@@ -126,10 +156,6 @@ class ResourceDownloadPage(QWidget):
         self._clear_content()
         self._initialize_resource_tree()
         
-    def _on_resource_download(self, resource_id: str):
-        """资源下载处理"""
-        # TODO: 实现资源下载逻辑
-        pass
         
     def _clear_content(self):
         """清空内容区域"""

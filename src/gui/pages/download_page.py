@@ -74,15 +74,9 @@ class DownloadPage(QWidget):
             resource_page = ResourceDownloadPage(group)
             self.stack.addWidget(resource_page)
             self.stack.setCurrentWidget(resource_page)
-              # 如果返回按钮被点击，切换回课程列表页面
-            def on_back():
-                self.stack.setCurrentWidget(self.courses_page)
-                # 删除资源页面以释放内存
-                self.stack.removeWidget(resource_page)
-                resource_page.deleteLater()
-                
-            # 连接返回按钮的点击信号
-            resource_page.findChild(QPushButton).clicked.connect(on_back)
+        else:
+            print(f"无法创建资源下载页面，ID: {group_id}")
+
     
     def update_group_manager(self, group_manager):
         """更新课程管理器"""
