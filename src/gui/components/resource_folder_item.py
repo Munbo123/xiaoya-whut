@@ -17,8 +17,8 @@ from src.core.resource import Resource
 class ResourceFolderItem(QWidget):
     """资源文件夹组件，显示资源文件夹"""
     
-    selected = Signal(bool, str)  # 选中状态改变信号(是否选中, 文件夹ID)
-    toggle = Signal(str)    # 展开/收起信号(是否展开, 文件夹ID)
+    selected = Signal(str)  # 选中状态改变信号(文件夹ID)
+    toggle = Signal(str)    # 展开/收起信号(文件夹ID)
     
     def __init__(self, resource: Resource, expanded: bool = False, parent=None,is_selected: bool = False):
         super().__init__(parent)
@@ -34,27 +34,11 @@ class ResourceFolderItem(QWidget):
         layout.setSpacing(10)
         
         # 选择按钮,自定义形状，圆形，选中状态用蓝色填充，未选中状态用白色填充
-        self.select_btn = QPushButton()
-        self.select_btn.setCheckable(True)
-        self.select_btn.setChecked(self.is_selected)
-        self.select_btn.setIcon(qta.icon('fa5s.circle', color='#666'))
-        self.select_btn.setIconSize(QSize(16, 16))
-        self.select_btn.setFixedSize(24, 24)
-        self.select_btn.setStyleSheet("""
-            QPushButton {
-                border: none;
-                border-radius: 12px;
-                background: transparent;
-            }
-            QPushButton:hover {
-                background: #f0f0f0;
-            }
-            QPushButton:checked {
-                background: #e5f3fc;
-                border-radius: 12px;
-            }
-        """)
-
+        self.select_btn = QRadioButton()
+        self.select_btn.clicked.connect(self._on_select_clicked)
+        layout.addWidget(self.select_btn)
+        if self.is_selected:
+            self.select_btn.setChecked(True)
         
         # 展开/收起按钮
         self.toggle_btn = QPushButton()
@@ -101,7 +85,7 @@ class ResourceFolderItem(QWidget):
         """选中按钮点击处理"""
         self.is_selected = not self.is_selected
         self.select_btn.setChecked(self.is_selected)
-        self.selected.emit(self.is_selected, self.resource.get_id())
+        self.selected.emit(self.resource.get_id())
         
     def _on_toggle_clicked(self):
         """展开/收起按钮点击处理"""

@@ -52,8 +52,8 @@ class ResourceTree:
                     else:
                         logger.warning(f"文件夹 {folder.name} 的父文件夹 {resource_data['parent_id']} 未找到，跳过该文件夹")
             else:  # 资源
-                resource = Resource(resource_data)
                 parent_folder = self.get_folder_by_id(resource_data['parent_id'])
+                resource = Resource(resource_data,parent_folder)
                 if parent_folder:
                     parent_folder.add_resource(resource)
                     self.resource_map[resource.get_path_id()] = resource
@@ -133,6 +133,8 @@ class ResourceTree:
         if self.root:
             for folder in self.root.get_all_sub_folders():
                 folder.print_tree(level)
+            for resource in self.root.get_all_resources():
+                print(f'{resource.get_name()}{"(select)" if resource.get_is_selected() else ""}')
 
     def toggle_expand(self,path_id) -> None:
         """
@@ -143,6 +145,20 @@ class ResourceTree:
             folder.toggle_expand()
         else:
             logger.warning(f"文件夹 {path_id} 未找到，无法切换展开状态")
+
+    def toggle_select(self,path_id) -> None:
+        """
+        切换指定资源或者文件夹的选中状态
+        """
+        resource:Resource = self.get_resource_by_id(path_id)
+        if resource:
+            resource.toggle_select()
+
+        resource_folder:ResourceFolder = self.get_folder_by_id(path_id)
+        if resource_folder:
+            resource_folder.toggle_select()
+
+
 
     def __str__(self) -> str:
         """字符串表示"""

@@ -28,10 +28,6 @@ class ResourceDownloadPage(QWidget):
         super().__init__(parent)
         self.group = group
         self.resource_tree = group.get_resource_tree()
-        self.item_tree = {
-            ResourceFolderItem:[ResourceFolderItem,ResourceItem],
-            ResourceItem:None
-        }     # 用来树状存储所有已经初始化的资源项
         self.init_ui()
         
     def init_ui(self):
@@ -160,7 +156,9 @@ class ResourceDownloadPage(QWidget):
             self.content_layout.addWidget(no_resource_label)
             return
         
+        print('\n\n')
         self.resource_tree.print_tree()
+        print('\n\n')
 
         # 不需要显示root层级，初始界面就是root界面下的若干个文件夹和资源
         # 添加文件夹
@@ -173,12 +171,9 @@ class ResourceDownloadPage(QWidget):
     def _add_reource_folder_widget(self, folder: ResourceFolder, indent_level: int = 0):
         '''添加资源文件夹组件'''
         # 创建文件夹组件
-        if folder.get_is_expanded():
-            # 如果文件夹已经展开，则创建展开的文件夹组件
-            widget = ResourceFolderItem(folder, expanded=True)
-        else:
-            widget = ResourceFolderItem(folder, expanded=False)
+        widget = ResourceFolderItem(folder,is_selected=folder.get_is_selected(),expanded=folder.get_is_expanded())
         widget.toggle.connect(self._on_folder_toggle)
+        widget.selected.connect(self._on_folder_selected)
         # 设置缩进
         widget_layout = widget.layout()
         widget_layout.insertSpacing(0, indent_level * 20)
@@ -201,7 +196,8 @@ class ResourceDownloadPage(QWidget):
             indent_level: 缩进级别
         """
         # 创建资源组件
-        widget = ResourceItem(resource)
+        widget = ResourceItem(resource,is_selected=resource.get_is_selected())
+        widget.selected.connect(self._on_resource_selected)
         # 设置缩进
         widget_layout = widget.layout()
         widget_layout.insertSpacing(0, indent_level * 20)
@@ -231,13 +227,22 @@ class ResourceDownloadPage(QWidget):
         """返回按钮点击处理"""
         self.back_clicked.emit()  # 发出返回信号
 
-    def _on_resource_selected(self, selected: bool, resource_id: str):
+    def _on_resource_selected(self,resource_id: str):
         """资源选中状态改变处理"""
-        # 如果选中或者取消选中的是一个文件夹，则将其下的所有资源都选中或者取消选中
-        if selected:
-            # 选中状态
-            self._select_all_resources_in_folder(resource_id)
-        else:
-            # 取消选中状态
-            self._deselect_all_resources_in_folder(resource_id)
+        resource:Resource = self.resource_tree.get_resource_by_id(resource_id)
+        if isinstance(resource, Resource):
+            resource.toggle_select()
         
+        # 重新构建资源树显示
+        self._clear_content()
+        self._initialize_resource_tree()
+    
+    def _on_folder_selected(self,folder_id: str):
+        """文件夹选中状态改变处理"""
+        folder:ResourceFolder = self.resource_tree.get_folder_by_id(folder_id)
+        if isinstance(folder, ResourceFolder):
+            folder.toggle_select()
+        
+        # 重新构建资源树显示
+        self._clear_content()
+        self._initialize_resource_tree()

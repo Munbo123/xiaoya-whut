@@ -29,6 +29,11 @@ class ResourceFolder:
             folder_data (Dict): 文件夹的详细信息字典
         """
         self._data = folder_data
+
+        # 折叠信息
+        self.is_expanded = False  # 是否折叠,默认折叠
+        # 是否选中
+        self.is_selected = False  # 是否选中
         
         # 基本信息
         self.id = str(folder_data.get('id', ''))
@@ -41,8 +46,7 @@ class ResourceFolder:
         self.sub_folders: Dict[str, ResourceFolder] = {}  # 键为path_id
         self.resources: Dict[str, Resource] = {}  # 键为path_id
 
-        # 折叠信息
-        self.is_expanded = False  # 是否折叠,默认折叠
+
 
         
     def add_sub_folder(self, folder: 'ResourceFolder') -> None:
@@ -198,12 +202,12 @@ class ResourceFolder:
             level (int): 当前层级
         """
         indent = ' ' * (level * 4)
-        print(f"{indent}{self.name}")
+        print(f"{indent}{self.name}{'(select)' if self.get_is_selected() else ''}")
         if self.is_expanded:
             for folder in self.get_all_sub_folders():
                 folder.print_tree(level + 1)
             for resource in self.get_all_resources():
-                print(f"{indent}    {resource.get_name()}")
+                print(f"{indent}    {resource.get_name()}{'(select)' if resource.get_is_selected() else ''}")
 
     def toogle_expand(self) -> None:
         """
@@ -214,6 +218,30 @@ class ResourceFolder:
     def get_is_expanded(self) -> bool:
         """获取文件夹是否展开"""
         return self.is_expanded
+    
+    def toggle_select(self) -> None:
+        """切换选中状态"""
+        self.is_selected = not self.is_selected
+        # 对于文件夹切换选中状态，需要同步更新子文件夹和资源的选中状态
+        for folder in self.get_all_sub_folders():
+            if folder.get_is_selected() != self.is_selected:
+                folder.toggle_select()
+        for resource in self.get_all_resources():
+            if resource.get_is_selected() != self.is_selected:
+                resource.toggle_select(ignore_parent=True)
+    
+    def check_select(self) -> None:
+        """检查选中状态"""
+        # 如果所有子文件夹和资源都被选中，则选中当前文件夹
+        all_selected = all(folder.get_is_selected() for folder in self.get_all_sub_folders()) and all(resource.get_is_selected() for resource in self.get_all_resources())
+        if all_selected:
+            self.is_selected = True
+        else:
+            self.is_selected = False
+
+    def get_is_selected(self) -> bool:
+        """获取选中状态"""
+        return self.is_selected
 
     def __str__(self) -> str:
         """字符串表示"""
