@@ -40,6 +40,10 @@ class ResourceFolder:
         # 子文件夹和资源列表
         self.sub_folders: Dict[str, ResourceFolder] = {}  # 键为path_id
         self.resources: Dict[str, Resource] = {}  # 键为path_id
+
+        # 折叠信息
+        self.is_expanded = False  # 是否折叠,默认折叠
+
         
     def add_sub_folder(self, folder: 'ResourceFolder') -> None:
         """
@@ -59,7 +63,8 @@ class ResourceFolder:
         """
         self.resources[resource.get_path_id()] = resource
     
-    def get_sub_folder(self, path_id: str) -> Optional['ResourceFolder']:
+    @staticmethod
+    def get_folder_by_id_recrusion(root:'ResourceFolder',path_id: str) -> Optional['ResourceFolder']:
         """
         获取指定path_id的子文件夹
         
@@ -70,22 +75,25 @@ class ResourceFolder:
             Optional[ResourceFolder]: 找到的文件夹对象，如果不存在则返回None
         """
         # 如果就是自己
-        if path_id == self.path_id:
-            return self
+        if path_id == root.get_path_id():
+            return root
 
         # 先在当前层查找
-        if path_id in self.sub_folders:
-            return self.sub_folders[path_id]
+        for folder in root.get_all_sub_folders():
+            if folder.get_path_id() == path_id:
+                return folder
+            
             
         # 递归在子文件夹中查找
-        for folder in self.sub_folders.values():
-            result = folder.get_sub_folder(path_id)
+        for folder in root.get_all_sub_folders():
+            result = folder.get_folder_by_id_recrusion(folder,path_id)
             if result:
                 return result
                 
         return None
     
-    def get_resource(self, path_id: str) -> Optional[Resource]:
+    @staticmethod
+    def get_resource_by_id_recursion(root:'ResourceFolder',path_id: str) -> Optional[Resource]:
         """
         获取指定path_id的资源
         
@@ -96,17 +104,48 @@ class ResourceFolder:
             Optional[Resource]: 找到的资源对象，如果不存在则返回None
         """
         # 先在当前层查找
-        if path_id in self.resources:
-            return self.resources[path_id]
+        for resource in root.get_all_resources():
+            if resource.get_path_id() == path_id:
+                return resource
             
         # 递归在子文件夹中查找
-        for folder in self.sub_folders.values():
-            result = folder.get_resource(path_id)
+        for folder in root.get_all_sub_folders():
+            result = folder.get_resource_by_id_recursion(folder,path_id)
             if result:
                 return result
                 
         return None
     
+    def get_folder_by_id(self, path_id: str) -> Optional['ResourceFolder']:
+        """
+        获取指定path_id的子文件夹
+        
+        Args:
+            path_id (str): 文件夹的path_id
+            
+        Returns:
+            Optional[ResourceFolder]: 找到的文件夹对象，如果不存在则返回None
+        """
+        for folder in self.get_all_sub_folders():
+            if folder.get_path_id() == path_id:
+                return folder
+        return None
+    
+    def get_resource_by_id(self, path_id: str) -> Optional['Resource']:
+        """
+        获取指定path_id的资源
+        
+        Args:
+            path_id (str): 资源的path_id
+            
+        Returns:
+            Optional[Resource]: 找到的资源对象，如果不存在则返回None
+        """
+        for resource in self.get_all_resources():
+            if resource.get_path_id() == path_id:
+                return resource
+        return None
+
     def get_all_resources(self) -> List[Resource]:
         """
         获取当前文件夹下的所有资源
@@ -114,8 +153,9 @@ class ResourceFolder:
         Returns:
             List[Resource]: 资源对象列表
         """
-        result = list(self.resources.values())
-        return result
+
+        return list(self.resources.values())
+
     
     def get_all_sub_folders(self) -> List['ResourceFolder']:
         """
@@ -124,8 +164,7 @@ class ResourceFolder:
         Returns:
             List[ResourceFolder]: 文件夹对象列表
         """
-        result = list(self.sub_folders.values())
-        return result
+        return list(self.sub_folders.values())
     
     def get_id(self) -> str:
         """获取文件夹ID"""
@@ -159,13 +198,22 @@ class ResourceFolder:
             level (int): 当前层级
         """
         indent = ' ' * (level * 4)
-        logger.info(f"{indent}- {self.name} (ID: {self.id})")
-        for folder in self.sub_folders.values():
-            logging.info(f"{indent}{folder.get_name()} ")
-            folder.print_tree(level + 1)
-        for resource in self.resources.values():
-            logger.info(f"{indent}{resource.get_name()}")
+        print(f"{indent}{self.name}")
+        if self.is_expanded:
+            for folder in self.get_all_sub_folders():
+                folder.print_tree(level + 1)
+            for resource in self.get_all_resources():
+                print(f"{indent}    {resource.get_name()}")
 
+    def toogle_expand(self) -> None:
+        """
+        切换文件夹的展开状态
+        """
+        self.is_expanded = not self.is_expanded
+
+    def get_is_expanded(self) -> bool:
+        """获取文件夹是否展开"""
+        return self.is_expanded
 
     def __str__(self) -> str:
         """字符串表示"""

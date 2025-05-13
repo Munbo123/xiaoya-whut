@@ -351,16 +351,20 @@ class MainWindow(QMainWindow):
                     border-left: 3px solid #0369a1;
                 }
             """
-        else:
-            return base_style
-
+        else:            return base_style
+            
     def on_side_button_clicked(self):
         """侧边栏按钮点击处理"""
         sender = self.sender()
         page = sender.property("page")
         
-        # 如果点击的是当前页面，不做任何操作
+        # 如果点击的是当前页面
         if page == self.current_page:
+            # 如果是资源下载页面，检查是否在资源展示页，是则返回课程列表
+            if page == "download" and self.download_page.stack.count() > 1:
+                self.download_page.back_to_course_list()
+                return
+            # 其他情况不做任何操作
             return
         
         # 更新按钮选中状态

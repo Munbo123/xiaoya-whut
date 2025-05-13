@@ -5,7 +5,7 @@
 """
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QScrollArea, QFrame,
+    QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QFrame,
     QPushButton, QLabel, QProgressBar
 )
 from PySide6.QtCore import Qt, Signal
@@ -22,11 +22,16 @@ from src.core.resource import Resource
 class ResourceDownloadPage(QWidget):
     """资源下载页面"""
     
+    back_clicked = Signal()  # 返回按钮点击信号
+    
     def __init__(self, group: Group, parent=None):
         super().__init__(parent)
         self.group = group
         self.resource_tree = group.get_resource_tree()
-        self.expanded_folders = set()  # 记录已展开的文件夹ID
+        self.item_tree = {
+            ResourceFolderItem:[ResourceFolderItem,ResourceItem],
+            ResourceItem:None
+        }     # 用来树状存储所有已经初始化的资源项
         self.init_ui()
         
     def init_ui(self):
@@ -45,13 +50,72 @@ class ResourceDownloadPage(QWidget):
         """)
         title_layout = QVBoxLayout(title_frame)
         title_layout.setContentsMargins(20, 15, 20, 15)
-        
-        # 课程名称
+          # 课程名称
         course_name = QLabel(self.group.get_name())
         course_name.setFont(QFont("Microsoft YaHei", 16, QFont.Bold))
         title_layout.addWidget(course_name)
         
         layout.addWidget(title_frame)
+        
+        # 操作按钮区域
+        button_frame = QFrame()
+        button_frame.setStyleSheet("""
+            QFrame {
+                background: white;
+                border-bottom: 1px solid #e5e7eb;
+            }
+        """)
+        button_layout = QHBoxLayout(button_frame)
+        button_layout.setContentsMargins(20, 10, 20, 10)
+        
+        # 返回按钮
+        self.back_btn = QPushButton("返回")
+        self.back_btn.setFixedSize(80, 32)
+        self.back_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #f3f4f6;
+                color: #111827;
+                border: 1px solid #d1d5db;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #e5e7eb;
+            }
+            QPushButton:pressed {
+                background-color: #d1d5db;
+            }
+        """)
+        self.back_btn.clicked.connect(self._on_back_clicked)
+        button_layout.addWidget(self.back_btn)
+        
+        # 添加间隔
+        button_layout.addSpacing(10)
+        
+        # 全部下载按钮
+        self.download_all_btn = QPushButton("全部下载")
+        self.download_all_btn.setFixedSize(100, 32)
+        self.download_all_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #0369a1;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #0284c7;
+            }
+            QPushButton:pressed {
+                background-color: #075985;
+            }
+        """)
+        button_layout.addWidget(self.download_all_btn)
+        
+        # 右侧弹簧，使按钮靠左对齐
+        button_layout.addStretch(1)
+        
+        layout.addWidget(button_frame)
         
         # 滚动区域
         scroll_area = QScrollArea()
@@ -96,6 +160,8 @@ class ResourceDownloadPage(QWidget):
             self.content_layout.addWidget(no_resource_label)
             return
         
+        self.resource_tree.print_tree()
+
         # 不需要显示root层级，初始界面就是root界面下的若干个文件夹和资源
         # 添加文件夹
         for folder in root.get_all_sub_folders():
@@ -104,11 +170,11 @@ class ResourceDownloadPage(QWidget):
         for resource in root.get_all_resources():
             self._add_resource_widget(resource)
         
-
     def _add_reource_folder_widget(self, folder: ResourceFolder, indent_level: int = 0):
         '''添加资源文件夹组件'''
         # 创建文件夹组件
-        if folder.get_path_id() in self.expanded_folders:
+        if folder.get_is_expanded():
+            # 如果文件夹已经展开，则创建展开的文件夹组件
             widget = ResourceFolderItem(folder, expanded=True)
         else:
             widget = ResourceFolderItem(folder, expanded=False)
@@ -118,15 +184,14 @@ class ResourceDownloadPage(QWidget):
         widget_layout.insertSpacing(0, indent_level * 20)
         # 添加到布局
         self.content_layout.addWidget(widget)
-        # 如果是展开的文件夹，添加其子节点
-        if folder.get_path_id() in self.expanded_folders:
+        # 如果文件夹已展开
+        if folder.get_is_expanded():
             # 添加子文件夹
             for child in folder.get_all_sub_folders():
                 self._add_reource_folder_widget(child, indent_level + 1)
             # 添加资源
             for resource in folder.get_all_resources():
                 self._add_resource_widget(resource, indent_level + 1)
-        print(f'文件夹 {folder.get_name()} 添加到布局，当前缩进级别: {indent_level}')
             
     def _add_resource_widget(self, resource: Resource, indent_level: int = 0):
         """添加资源组件
@@ -143,23 +208,36 @@ class ResourceDownloadPage(QWidget):
         # 添加到布局
         self.content_layout.addWidget(widget)
 
-
-    def _on_folder_toggle(self, expanded: bool, folder_id: str):
+    def _on_folder_toggle(self,folder_id: str):
         """文件夹展开/收起处理"""
-        print(f'文件夹 {folder_id} {"展开" if expanded else "收起"}')
-        if expanded:
-            self.expanded_folders.add(folder_id)
-        else:
-            self.expanded_folders.discard(folder_id)
-            
+        # 更新展开状态
+        folder:ResourceFolder = self.resource_tree.get_folder_by_id(folder_id)
+        if isinstance(folder, ResourceFolder):
+            folder.toogle_expand()
+
         # 重新构建资源树显示
         self._clear_content()
         self._initialize_resource_tree()
-        
-        
+
+
     def _clear_content(self):
         """清空内容区域"""
         while self.content_layout.count():
             item = self.content_layout.takeAt(0)
             if item.widget():
                 item.widget().deleteLater()
+    
+    def _on_back_clicked(self):
+        """返回按钮点击处理"""
+        self.back_clicked.emit()  # 发出返回信号
+
+    def _on_resource_selected(self, selected: bool, resource_id: str):
+        """资源选中状态改变处理"""
+        # 如果选中或者取消选中的是一个文件夹，则将其下的所有资源都选中或者取消选中
+        if selected:
+            # 选中状态
+            self._select_all_resources_in_folder(resource_id)
+        else:
+            # 取消选中状态
+            self._deselect_all_resources_in_folder(resource_id)
+        
