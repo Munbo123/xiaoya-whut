@@ -1,0 +1,47 @@
+"""
+获取指定课程组的所有资源信息
+
+Returns:
+    list[dict]: 课程组资源信息字典组成的列表
+"""
+
+url = f'https://whut.ai-augmented.com/api/jx-iresource/resource/queryCourseResources?group_id=6630748775256198468'
+
+{'code': 0,
+'data': [{'assign_to_type': 3,
+        'author': '5986462606053883650',
+        'copy': 1,
+        'created_at': '2025-03-05T03:04:51.296Z',
+        'creator': '5986462294291267488',
+        'del': 1,
+        'discussion_channel_type': 0,
+        'download': 1,
+        'end_time': '2025-06-30T15:59:59.999Z',
+        'finish_teaching': 0,
+        'group_id': '6630749086666515498',
+        'id': '6664647493881482423',
+        'is_allow_after_submitted': False,
+        'is_task': True,
+        'level': None,
+        'lock': 1,
+        'mimetype': None,
+        'name': '作业3',
+        'parent_id': '6664647493881482431',
+        'path': '6630749086674904107/6664647493881482431/6664647493881482423',
+        'property': {'task_type': 2},
+        'public': 1,
+        'publish_record_id': '0',
+        'published': 1,
+        'quote_id': '6664647505466099054',
+        'resource_type': 11,
+        'sort_position': 1,
+        'start_time': '2025-03-05T04:01:14.337Z',
+        'tag': None,
+        'task_assign_to_id': '6630749086666515498',
+        'task_id': '6664676111617645692',
+        'task_type': 2,
+        'type': 7,
+        'updated_at': '2025-03-05T04:01:44.353Z',
+        'watch_min_minutes': 2}],
+'message': 'ok',
+'success': True}

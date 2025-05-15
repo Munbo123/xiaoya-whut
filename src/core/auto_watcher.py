@@ -65,8 +65,37 @@ class AutoWatcher:
         自动观看文档
 
         Args:
-            video_id (str): 视频ID
+            group_id (str): 课程ID
+            path_id (str): 文档路径ID
         """
+
+        # 获取任务id
+        url = f'https://whut.ai-augmented.com/api/jx-iresource/resource/queryResource?node_id={path_id}'
+        response = self.session.get(url, headers=self.headers)
+        task_id = response.json()['data']['task_id']
+
+        # 提交任务
+        data = {
+            'group_id': group_id,
+            'media_id': path_id,
+            'task_id': task_id,
+        }
+
+        target_url = f'https://whut.ai-augmented.com/api/jx-iresource/resource/finishActivity'
+
+        response = self.session.post(target_url, headers=self.headers, json=data)
+
+        if response.status_code == 200:
+            if int(response.json()['code']) == 0:
+                logger.info(f"自动观看成功: {response.json()}")
+                return True
+            else:
+                logger.error(f"自动观看失败: {response.json()}")
+                return False
+        else:
+            logger.error(f"请求失败: {response.status_code}, {response.text}")
+            return False
+        
 
 
     def _commit_duration(self, path_id) -> None:

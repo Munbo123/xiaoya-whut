@@ -12,13 +12,15 @@ from PySide6.QtCore import Qt, Slot
 
 from src.gui.components.course_card_grid import CourseCardGrid
 from src.gui.pages.resource_download_page import ResourceDownloadPage
+from src.core.group import Group
+from src.core.group_manager import GroupManager
 
 class DownloadPage(QWidget):
     """资源下载页面，用于下载小雅平台上的课程资源"""
     
     def __init__(self, group_manager=None):
         super().__init__()
-        self.group_manager = group_manager
+        self.group_manager:GroupManager = group_manager
         self.init_ui()
     
     def init_ui(self):
@@ -62,28 +64,30 @@ class DownloadPage(QWidget):
             print("未找到 group_manager")  # 调试信息
             return
         
-        group = self.group_manager.get_group_by_id(group_id)
-
+        group = self.group_manager.get_group_by_id(group_id)        
         if group:
             print(f"找到课程: {group.get_name()}")  # 调试信息
-        else:
-            print(f"未找到课程，ID: {group_id}")  # 调试信息
-
-        if group:
             # 创建并显示资源下载页面
             resource_page = ResourceDownloadPage(group)
+            resource_page.back_clicked.connect(self.back_to_course_list)
             self.stack.addWidget(resource_page)
             self.stack.setCurrentWidget(resource_page)
-              # 如果返回按钮被点击，切换回课程列表页面
-            def on_back():
-                self.stack.setCurrentWidget(self.courses_page)
-                # 删除资源页面以释放内存
-                self.stack.removeWidget(resource_page)
-                resource_page.deleteLater()
-                
-            # 连接返回按钮的点击信号
-            resource_page.findChild(QPushButton).clicked.connect(on_back)
+        else:
+            print(f"未找到课程，ID: {group_id}")  # 调试信息
+            print(f"无法创建资源下载页面，ID: {group_id}")
     
+    def back_to_course_list(self):
+        """返回到课程列表页面"""
+        # 将当前视图切换回课程列表页面
+        self.stack.setCurrentWidget(self.courses_page)
+        
+        # 移除除了课程列表页面以外的所有页面
+        while self.stack.count() > 1:  # 保留第一个页面(课程列表页面)
+            widget = self.stack.widget(1)  # 获取第二个页面(总是处于索引1的位置)
+            self.stack.removeWidget(widget)
+            if widget:
+                widget.deleteLater()
+
     def update_group_manager(self, group_manager):
         """更新课程管理器"""
         self.group_manager = group_manager

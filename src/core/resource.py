@@ -21,7 +21,7 @@ logger = logging.getLogger('xiaoya.resource')
 class Resource:
     """表示小雅平台上的一个具体资源"""
     
-    def __init__(self, resource_data: Dict):
+    def __init__(self, resource_data: Dict,parent_folder=None):
         """
         初始化资源对象
         
@@ -30,11 +30,16 @@ class Resource:
         """
         self._data = resource_data
         
+        # 是否选中
+        self.is_selected = False
+
         # 解析基本信息
         self.id = str(resource_data.get('id', ''))
         self.name = str(resource_data.get('name', ''))
         self.path = str(resource_data.get('path', ''))
+        self.parent_id = str(resource_data.get('parent_id', ''))
         self.path_id = self.path.split('/')[-1] if self.path else self.id
+        self.parent_folder = parent_folder  # 父文件夹对象
         
         # 解析时间信息
         self.created_at = self._parse_datetime(resource_data.get('created_at'))
@@ -83,6 +88,20 @@ class Resource:
             logger.warning(f"日期解析失败: {dt_str}, 错误: {str(e)}")
             return None
     
+    def get_is_selected(self) -> bool:
+        """获取选中状态"""
+        return self.is_selected
+
+    def toggle_select(self,ignore_parent=False) -> None:
+        """切换选中状态"""
+        self.is_selected = not self.is_selected
+        if ignore_parent:
+            return
+        # 对于资源，切换选中状态时要让父文件夹更新一次状态
+        parent_folder = self.get_parent_folder()
+        parent_folder.check_select()
+    
+
     def get_id(self) -> str:
         """获取资源ID"""
         return self.id
@@ -98,6 +117,14 @@ class Resource:
     def get_path(self) -> str:
         """获取资源完整路径"""
         return self.path
+
+    def get_parent_id(self) -> str:
+        """获取资源父ID"""
+        return self.parent_id
+    
+    def get_parent_folder(self):
+        """获取资源的父文件夹"""
+        return self.parent_folder
     
     def get_created_time(self) -> Optional[datetime]:
         """获取创建时间"""

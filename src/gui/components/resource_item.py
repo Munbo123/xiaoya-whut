@@ -17,12 +17,12 @@ from src.core.resource import Resource
 class ResourceItem(QWidget):
     """资源项组件，显示单个资源项"""
     
-    selected = Signal(bool, str)  # 选中状态改变信号(是否选中, 资源ID)
-    download_clicked = Signal(str)  # 下载按钮点击信号(资源ID)
+    selected = Signal(str)  # 选中状态改变信号(资源ID)
     
-    def __init__(self, resource: Resource, parent=None):
+    def __init__(self, resource: Resource, parent=None,is_selected: bool = False):
         super().__init__(parent)
         self.resource = resource
+        self.is_selected = is_selected  # 是否选中
         self.init_ui()
         
     def init_ui(self):
@@ -35,6 +35,9 @@ class ResourceItem(QWidget):
         self.select_btn = QRadioButton()
         self.select_btn.clicked.connect(self._on_selection_changed)
         layout.addWidget(self.select_btn)
+        if self.is_selected:
+            self.select_btn.setChecked(True)
+
         
         # 资源名称
         self.name_label = QLabel(self.resource.get_name())
@@ -77,17 +80,15 @@ class ResourceItem(QWidget):
         # 固定高度
         self.setFixedHeight(44)
         
-    def _on_selection_changed(self, checked: bool):
+    def _on_selection_changed(self):
         """选中状态改变处理"""
-        self.selected.emit(checked, self.resource.get_id())
+        self.selected.emit(self.resource.get_id())
         
     def _on_download_clicked(self):
         """下载按钮点击处理"""
-        self.download_clicked.emit(self.resource.get_id())
-        
-    def set_selected(self, selected: bool):
-        """设置选中状态"""
-        self.select_btn.setChecked(selected)
+        # 直接下载，不进行信号传递，减小复杂度
+        # 直接调用下载函数
+        print(f'弹出下载界面：{self.resource.get_name()} {self.resource.get_id()}')
         
     def get_resource(self) -> Resource:
         """获取资源对象"""
