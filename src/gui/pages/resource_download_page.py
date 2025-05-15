@@ -132,6 +132,7 @@ class ResourceDownloadPage(QWidget):
         
         scroll_area.setWidget(self.content_widget)
         layout.addWidget(scroll_area, 1)  # 1表示伸展因子
+        layout.addStretch()
         
         # 初始化资源树显示
         self._initialize_resource_tree()

@@ -5,6 +5,8 @@ Returns:
     list[dict]: 课程组资源信息字典组成的列表
 """
 
+url = f'https://whut.ai-augmented.com/api/jx-iresource/resource/queryCourseResources?group_id=6630748775256198468'
+
 {'code': 0,
 'data': [{'assign_to_type': 3,
         'author': '5986462606053883650',

@@ -161,7 +161,7 @@ class MainWindow(QMainWindow):
         self.status_label.setText("自动登录成功")
         
         # 更新账户部件
-        self.settings_page.account_widget.handle_login_success(
+        self.settings_page.accout_page.handle_login_success(
             login_manager, user_info_manager, group_manager
         )
 
