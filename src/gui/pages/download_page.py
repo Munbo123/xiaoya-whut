@@ -68,7 +68,7 @@ class DownloadPage(QWidget):
         if group:
             print(f"找到课程: {group.get_name()}")  # 调试信息
             # 创建并显示资源下载页面
-            resource_page = ResourceDownloadPage(group)
+            resource_page = ResourceDownloadPage(group,self.get_login_manager())
             resource_page.back_clicked.connect(self.back_to_course_list)
             self.stack.addWidget(resource_page)
             self.stack.setCurrentWidget(resource_page)
@@ -93,3 +93,6 @@ class DownloadPage(QWidget):
         self.group_manager = group_manager
         self.course_grid.update_group_manager(group_manager)
 
+    def get_login_manager(self):
+        """获取登录管理器"""
+        return self.group_manager.get_login_manager()

@@ -96,9 +96,9 @@ class ResourceTree:
         # 递归查找
         return self.root.get_folder_by_id_recrusion(self.root,target_id)
  
-    def get_root_folders(self) -> List[ResourceFolder]:
+    def get_root_folder(self) -> List[ResourceFolder]:
         """
-        获取所有根文件夹
+        获取根文件夹
         
         Returns:
             ResourceFolder: 根文件夹

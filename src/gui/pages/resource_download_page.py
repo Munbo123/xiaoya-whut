@@ -4,6 +4,7 @@
 资源下载页面
 """
 
+import os
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QScrollArea, QFrame,
     QPushButton, QLabel, QProgressBar
@@ -18,16 +19,19 @@ from src.gui.components.resource_folder_item import ResourceFolderItem
 from src.core.resource_tree import ResourceTree
 from src.core.resource_folder import ResourceFolder
 from src.core.resource import Resource
+from src.core.download_manager import DownloadManager
+from src.core.xiaoya_login_manager import XiaoyaLoginManager
 
 class ResourceDownloadPage(QWidget):
     """资源下载页面"""
     
     back_clicked = Signal()  # 返回按钮点击信号
     
-    def __init__(self, group: Group, parent=None):
+    def __init__(self,group: Group,login_manager:XiaoyaLoginManager,parent=None):
         super().__init__(parent)
         self.group = group
         self.resource_tree = group.get_resource_tree()
+        self.login_manager = login_manager
         self.init_ui()
         
     def init_ui(self):
@@ -106,6 +110,7 @@ class ResourceDownloadPage(QWidget):
                 background-color: #075985;
             }
         """)
+        self.download_all_btn.clicked.connect(self._all_download)
         button_layout.addWidget(self.download_all_btn)
         
         # 右侧弹簧，使按钮靠左对齐
@@ -148,7 +153,7 @@ class ResourceDownloadPage(QWidget):
             return
             
         # 获取根节点
-        root:ResourceFolder = self.resource_tree.get_root_folders()
+        root:ResourceFolder = self.resource_tree.get_root_folder()
         if not root:
             # 显示无资源提示
             no_resource_label = QLabel("该课程暂无资源")
@@ -157,9 +162,9 @@ class ResourceDownloadPage(QWidget):
             self.content_layout.addWidget(no_resource_label)
             return
         
-        print('\n\n')
-        self.resource_tree.print_tree()
-        print('\n\n')
+        # print('\n\n')
+        # self.resource_tree.print_tree()
+        # print('\n\n')
 
         # 不需要显示root层级，初始界面就是root界面下的若干个文件夹和资源
         # 添加文件夹
@@ -247,3 +252,41 @@ class ResourceDownloadPage(QWidget):
         # 重新构建资源树显示
         self._clear_content()
         self._initialize_resource_tree()
+    
+    def _all_download(self):
+        """全部下载按钮点击处理"""
+        # 获取所有选中的资源
+        self.download_manager = DownloadManager(login_manager=self.login_manager)
+        res = self.download_manager.batch_download(self.group,save_path=f"{os.getcwd()}")
+
+        if res['code'] == 0:
+            success_num = res['success_num']
+            fail_num = res['fail_num']
+            message = f"下载完成！成功下载 {success_num} 个资源，失败 {fail_num} 个资源。"
+        else:
+            message = f"下载失败！错误信息：{res['message']}"
+
+        # 弹出消息框显示下载结果
+        self._show_message_box(message)
+
+    def _show_message_box(self, message: str):
+        """弹出消息框显示下载结果"""
+        message_box = QFrame()
+        message_box.setStyleSheet("""
+            QFrame {
+                background: white;
+                border: 1px solid #d1d5db;
+                border-radius: 4px;
+                padding: 20px;
+            }
+        """)
+        message_label = QLabel(message)
+        message_label.setAlignment(Qt.AlignCenter)
+        message_label.setStyleSheet("color: #111827;")
+        
+        layout = QVBoxLayout(message_box)
+        layout.addWidget(message_label)
+        
+        self.content_layout.addWidget(message_box)
+
+

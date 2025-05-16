@@ -35,6 +35,7 @@ class Resource:
 
         # 解析基本信息
         self.id = str(resource_data.get('id', ''))
+        self.quote_id = str(resource_data.get('quote_id', ''))
         self.name = str(resource_data.get('name', ''))
         self.path = str(resource_data.get('path', ''))
         self.parent_id = str(resource_data.get('parent_id', ''))
@@ -101,6 +102,9 @@ class Resource:
         parent_folder = self.get_parent_folder()
         parent_folder.check_select()
     
+    def get_quote_id(self) -> str:
+        """获取引用ID"""
+        return self.quote_id
 
     def get_id(self) -> str:
         """获取资源ID"""

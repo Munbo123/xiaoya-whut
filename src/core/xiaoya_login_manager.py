@@ -30,8 +30,9 @@ logger = logging.getLogger('xiaoya.login')
 class XiaoyaLoginManager:
     """小雅平台登录管理器"""
     
-    def __init__(self):
+    def __init__(self,ignore_log=True):
         """初始化登录管理器"""
+        self.ignore_log = ignore_log
         self.session = requests.Session()
         # 设置初始cookie
         self.session.cookies.set('WT-prd-language', 'zh-CN', domain='infra.ai-augmented.com')
@@ -56,7 +57,8 @@ class XiaoyaLoginManager:
             requests.Session: 包含登录凭证的会话对象
         """
         try:
-            logger.info("开始登录流程")
+            if not self.ignore_log:
+                logger.info("开始登录流程")
             
             # 步骤1: 初始设置cookie并获取XY_AUTH_SESSION
             self._init_auth_session()
@@ -85,11 +87,13 @@ class XiaoyaLoginManager:
             
             self.headers['Authorization'] = self.get_WT_prd_acess_token()
 
-            logger.info("登录成功")
+            if not self.ignore_log:
+                logger.info("登录成功")
             return self.session
             
         except Exception as e:
-            logger.error(f"登录失败: {str(e)}")
+            if not self.ignore_log:
+                logger.error(f"登录失败: {str(e)}")
             raise
     
     def _init_auth_session(self):
@@ -114,7 +118,8 @@ class XiaoyaLoginManager:
             'Upgrade-Insecure-Requests': '1',
         })
         
-        logger.info("步骤1: 初始化认证会话，获取XY_AUTH_SESSION")
+        if not self.ignore_log:
+            logger.info("步骤1: 初始化认证会话，获取XY_AUTH_SESSION")
         try:
             # 发送请求，不跟随重定向以便获取设置的cookies
             response = self.session.get(url, params=params, headers=headers, allow_redirects=False)
@@ -122,7 +127,8 @@ class XiaoyaLoginManager:
             # 检查状态码是否表示重定向
             if response.status_code != 302:
                 error_msg = f"初始化认证会话失败，状态码: {response.status_code}"
-                logger.error(error_msg)
+                if not self.ignore_log:
+                    logger.error(error_msg)
                 raise Exception(error_msg)
                 
             # 检查是否获取到XY_AUTH_SESSION cookie
@@ -130,24 +136,29 @@ class XiaoyaLoginManager:
             xy_auth_session = cookies.get('XY_AUTH_SESSION')
             if not xy_auth_session:
                 error_msg = "未获取到XY_AUTH_SESSION cookie"
-                logger.error(error_msg)
+                if not self.ignore_log:
+                    logger.error(error_msg)
                 raise Exception(error_msg)
-                
-            logger.info(f"成功获取XY_AUTH_SESSION cookie: {xy_auth_session[:10]}...")
+            
+            if not self.ignore_log:
+                logger.info(f"成功获取XY_AUTH_SESSION cookie: {xy_auth_session[:10]}...")
             
             # 获取重定向的URL
             redirect_url = self._get_location_header(response)
             if not redirect_url:
                 error_msg = "未获取到重定向URL"
-                logger.error(error_msg)
+                if not self.ignore_log:
+                    logger.error(error_msg)
                 raise Exception(error_msg)
-                
-            logger.debug(f"重定向URL: {redirect_url}")
+            
+            if not self.ignore_log:
+                logger.debug(f"重定向URL: {redirect_url}")
             return redirect_url
             
         except requests.exceptions.RequestException as e:
             error_msg = f"初始化认证会话请求异常: {str(e)}"
-            logger.error(error_msg)
+            if not self.ignore_log:
+                logger.error(error_msg)
             raise Exception(error_msg)
         
     def _get_login_form_params(self):
@@ -158,13 +169,15 @@ class XiaoyaLoginManager:
         
         headers = self.headers.copy()
         
-        logger.info("步骤2-3: 获取登录表单参数")
+        if not self.ignore_log:
+            logger.info("步骤2-3: 获取登录表单参数")
         try:
             # 发送请求获取登录页面
             response = self.session.get(login_page_url, headers=headers)
             if response.status_code != 200:
                 error_msg = f"获取登录页面失败，状态码: {response.status_code}"
-                logger.error(error_msg)
+                if not self.ignore_log:
+                    logger.error(error_msg)
                 raise Exception(error_msg)
             
             # 使用BeautifulSoup解析页面内容，提取表单参数
@@ -188,7 +201,8 @@ class XiaoyaLoginManager:
             
             if not lt_value:
                 error_msg = "未能从登录页面提取到lt参数"
-                logger.error(error_msg)
+                if not self.ignore_log:
+                    logger.error(error_msg)
                 raise Exception(error_msg)
             
             # 构建表单参数字典
@@ -199,16 +213,19 @@ class XiaoyaLoginManager:
                 'rsa': rsa_value
             }
             
-            logger.info(f"成功提取登录表单参数: lt={lt_value[:8]}..., execution={execution_value}, _eventId={event_id_value}")
+            if not self.ignore_log:
+                logger.info(f"成功提取登录表单参数: lt={lt_value[:8]}..., execution={execution_value}, _eventId={event_id_value}")
             return form_params, login_page_url
             
         except requests.exceptions.RequestException as e:
             error_msg = f"获取登录页面失败: {str(e)}"
-            logger.error(error_msg)
+            if not self.ignore_log:
+                logger.error(error_msg)
             raise Exception(error_msg)
         except Exception as e:
             error_msg = f"解析登录页面参数失败: {str(e)}"
-            logger.error(error_msg)
+            if not self.ignore_log:
+                logger.error(error_msg)
             raise Exception(error_msg)
     
     def _get_rsa_public_key(self):
@@ -223,36 +240,43 @@ class XiaoyaLoginManager:
             'Referer': 'https://zhlgd.whut.edu.cn/tpass/login',
         })
         
-        logger.info("步骤4: 获取RSA公钥")
+        if not self.ignore_log:
+            logger.info("步骤4: 获取RSA公钥")
         try:
             response = self.session.post(url, params=params, headers=headers)
             if response.status_code != 200:
                 error_msg = f"获取RSA公钥失败，状态码: {response.status_code}"
-                logger.error(error_msg)
+                if not self.ignore_log:
+                    logger.error(error_msg)
                 raise Exception(error_msg)
                 
             key_data = response.json()
             if "publicKey" not in key_data:
                 error_msg = "响应中未找到publicKey"
-                logger.error(error_msg)
+                if not self.ignore_log:
+                    logger.error(error_msg)
                 raise Exception(error_msg)
                 
             public_key = key_data['publicKey']
-            logger.info(f"成功获取RSA公钥: {public_key[:10]}...")
+            if not self.ignore_log:
+                logger.info(f"成功获取RSA公钥: {public_key[:10]}...")
             return public_key
         
         except requests.exceptions.RequestException as e:
             error_msg = f"获取RSA公钥请求异常: {str(e)}"
-            logger.error(error_msg)
+            if not self.ignore_log:
+                logger.error(error_msg)
             raise Exception(error_msg)
         except json.JSONDecodeError as e:
             error_msg = f"RSA公钥响应解析失败: {str(e)}"
-            logger.error(error_msg)
+            if not self.ignore_log:
+                logger.error(error_msg)
             raise Exception(error_msg)
     
     def _encrypt_with_rsa(self, public_key, text):
         """使用RSA公钥加密文本"""
-        logger.info(f"使用RSA加密数据: {text[:3]}...")
+        if not self.ignore_log:
+            logger.info(f"使用RSA加密数据: {text[:3]}...")
         try:
             # 格式化公钥
             if not public_key.startswith('-----BEGIN PUBLIC KEY-----'):
@@ -266,17 +290,20 @@ class XiaoyaLoginManager:
             encrypted = cipher.encrypt(text.encode('utf-8'))
             encrypted_b64 = base64.b64encode(encrypted).decode('utf-8')
             
-            logger.debug(f"加密结果: {encrypted_b64[:10]}...")
+            if not self.ignore_log:
+                logger.debug(f"加密结果: {encrypted_b64[:10]}...")
             return encrypted_b64
             
         except Exception as e:
             error_msg = f"RSA加密失败: {str(e)}"
-            logger.error(error_msg)
+            if not self.ignore_log:
+                logger.error(error_msg)
             raise Exception(error_msg)
     
     def _submit_login_form(self, login_url, form_params, encrypted_username, encrypted_password):
         """提交登录表单"""
-        logger.info("步骤5: 提交登录表单")
+        if not self.ignore_log:
+            logger.info("步骤5: 提交登录表单")
         
         # 准备登录表单数据
         login_data = {
@@ -300,34 +327,40 @@ class XiaoyaLoginManager:
             # 检查状态码
             if response.status_code != 302:
                 error_msg = f"提交登录表单失败，状态码: {response.status_code}"
-                logger.error(error_msg)
+                if not self.ignore_log:
+                    logger.error(error_msg)
                 if response.status_code == 200:
                     # 如果返回200，可能是登录失败（用户名或密码错误）
                     if "错误" in response.text or "失败" in response.text:
                         error_msg = "登录失败，可能是用户名或密码错误"
-                    logger.error(f"登录页面返回内容: {response.text[:200]}...")
+                    if not self.ignore_log:
+                        logger.error(f"登录页面返回内容: {response.text[:200]}...")
                 raise Exception(error_msg)
             
             # 获取重定向的URL，其中包含ticket
             location = self._get_location_header(response)
             if not location:
                 error_msg = "登录成功但未获取到重定向URL"
-                logger.error(error_msg)
+                if not self.ignore_log:
+                    logger.error(error_msg)
                 raise Exception(error_msg)
                 
-            logger.debug(f"登录重定向URL: {location}")
+            if not self.ignore_log:
+                logger.debug(f"登录重定向URL: {location}")
         
             # 返回完整URL，用于后续请求
             return location
             
         except requests.exceptions.RequestException as e:
             error_msg = f"提交登录表单请求异常: {str(e)}"
-            logger.error(error_msg)
+            if not self.ignore_log:
+                logger.error(error_msg)
             raise Exception(error_msg)
     
     def _process_cas_login(self, cas_login_url) -> str:
         """处理CAS登录URL，获取state并处理第6-7步重定向"""
-        logger.info("步骤6-7: 处理CAS登录URL获取state")
+        if not self.ignore_log:
+            logger.info("步骤6-7: 处理CAS登录URL获取state")
         
         headers = self.headers.copy()
         headers.update({
@@ -347,11 +380,13 @@ class XiaoyaLoginManager:
             # 检查状态码
             if response.status_code != 302:
                 error_msg = f"CAS登录URL请求失败，状态码: {response.status_code}"
-                logger.error(error_msg)
+                if not self.ignore_log:
+                    logger.error(error_msg)
                 # 如果不是重定向，尝试打印响应内容以便调试
                 if response.status_code == 200:
                     try:
-                        logger.error(f"响应内容(非重定向): {response.text[:200]}...")
+                        if not self.ignore_log:
+                            logger.error(f"响应内容(非重定向): {response.text[:200]}...")
                     except:
                         pass
                 raise Exception(error_msg)
@@ -360,10 +395,12 @@ class XiaoyaLoginManager:
             location = self._get_location_header(response)
             if not location:
                 error_msg = "CAS登录响应中未包含Location头"
-                logger.error(error_msg)
+                if not self.ignore_log:
+                    logger.error(error_msg)
                 raise Exception(error_msg)
                 
-            logger.debug(f"CAS登录重定向URL: {location}")
+            if not self.ignore_log:
+                logger.debug(f"CAS登录重定向URL: {location}")
             
 
             # 返回下一步要访问的URL
@@ -372,15 +409,18 @@ class XiaoyaLoginManager:
             
         except requests.exceptions.RequestException as e:
             error_msg = f"处理CAS登录URL异常: {str(e)}"
-            logger.error(error_msg)
+            if not self.ignore_log:
+                logger.error(error_msg)
             raise Exception(error_msg)
     
     def _get_authorization_code(self, redirect_url):
         """获取授权码，处理第8-9步重定向"""
-        logger.info("步骤8-9: 获取授权码")
+        if not self.ignore_log:
+            logger.info("步骤8-9: 获取授权码")
         
         # 1. 先访问安全提示页面 (securityNotice)
-        logger.info("访问安全提示页面...")
+        if not self.ignore_log:
+            logger.info("访问安全提示页面...")
         security_headers = self.headers.copy()
         security_headers.update({
             'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
@@ -391,10 +431,12 @@ class XiaoyaLoginManager:
             # 请求安全提示页面，这一步应返回200状态码
             security_response = self.session.get(redirect_url, headers=security_headers)
             if security_response.status_code != 200:
-                logger.warning(f"安全提示页面返回非200状态码: {security_response.status_code}")
+                if not self.ignore_log:
+                    logger.warning(f"安全提示页面返回非200状态码: {security_response.status_code}")
             
             # 2. 然后访问授权重定向API
-            logger.info("访问授权重定向API...")
+            if not self.ignore_log:
+                logger.info("访问授权重定向API...")
             redirect_api_url = "https://infra.ai-augmented.com/api/auth/oauth/onAccountAuthRedirect"
             
             redirect_headers = self.headers.copy()
@@ -408,31 +450,37 @@ class XiaoyaLoginManager:
             
             if redirect_response.status_code != 302:
                 error_msg = f"授权重定向API请求失败，状态码: {redirect_response.status_code}"
-                logger.error(error_msg)
+                if not self.ignore_log:
+                    logger.error(error_msg)
                 if redirect_response.status_code == 200:
-                    logger.error(f"响应内容: {redirect_response.text[:200]}...")
+                    if not self.ignore_log:
+                        logger.error(f"响应内容: {redirect_response.text[:200]}...")
                 raise Exception(error_msg)
             
             # 获取重定向URL
             location = self._get_location_header(redirect_response)
             if not location:
                 error_msg = "授权重定向响应中未包含Location头"
-                logger.error(error_msg)
+                if not self.ignore_log:
+                    logger.error(error_msg)
                 raise Exception(error_msg)
-                
-            logger.debug(f"授权重定向URL: {location}")
+            
+            if not self.ignore_log:
+                logger.debug(f"授权重定向URL: {location}")
 
             # 返回最终回调URL
             return location
             
         except requests.exceptions.RequestException as e:
             error_msg = f"获取授权码请求异常: {str(e)}"
-            logger.error(error_msg)
+            if not self.ignore_log:
+                logger.error(error_msg)
             raise Exception(error_msg)
     
     def _complete_final_callback(self, callback_url):
         """完成最终回调，步骤10"""
-        logger.info("步骤10: 访问最终回调URL...")
+        if not self.ignore_log:
+            logger.info("步骤10: 访问最终回调URL...")
         
         headers = self.headers.copy()
         headers.update({
@@ -445,14 +493,17 @@ class XiaoyaLoginManager:
             response = self.session.get(callback_url, headers=headers, allow_redirects=True)
             
             if response.status_code != 200:
-                logger.warning(f"最终回调请求返回非200状态码: {response.status_code}")
+                if not self.ignore_log:
+                    logger.warning(f"最终回调请求返回非200状态码: {response.status_code}")
        
-            logger.info("登录流程完成")
+            if not self.ignore_log:
+                logger.info("登录流程完成")
             return response
             
         except requests.exceptions.RequestException as e:
             error_msg = f"访问最终回调URL异常: {str(e)}"
-            logger.error(error_msg)
+            if not self.ignore_log:
+                logger.error(error_msg)
             raise Exception(error_msg)
         
     def _get_location_header(self, response):
@@ -463,54 +514,6 @@ class XiaoyaLoginManager:
         """解析URL中的查询参数"""
         parsed_url = urllib.parse.urlparse(url)
         return urllib.parse.parse_qs(parsed_url.query)
-    
-    def save_session(self, filepath):
-        """
-        保存当前会话到文件
-        
-        Args:
-            filepath (str): 保存会话文件的路径
-        """
-        logger.info(f"保存会话到文件: {filepath}")
-        try:
-            # 创建目录（如果不存在）
-            directory = os.path.dirname(filepath)
-            if directory and not os.path.exists(directory):
-                os.makedirs(directory)
-                
-            # 保存会话
-            with open(filepath, 'wb') as f:
-                pickle.dump(self.session, f)
-                
-            logger.info("会话保存成功")
-            return True
-        except Exception as e:
-            logger.error(f"保存会话失败: {str(e)}")
-            return False
-    
-    def load_session(self, filepath):
-        """
-        从文件加载会话
-        
-        Args:
-            filepath (str): 会话文件路径
-            
-        Returns:
-            bool: 是否成功加载会话
-        """
-        logger.info(f"从文件加载会话: {filepath}")
-        try:
-            if not os.path.exists(filepath):
-                logger.error(f"会话文件不存在: {filepath}")
-                return False
-                
-            with open(filepath, 'rb') as f:
-                self.session = pickle.load(f)
-                
-            return True
-        except Exception as e:
-            logger.error(f"加载会话失败: {str(e)}")
-            return False
 
     def print_cookies(self):
         """打印当前会话的所有cookie"""

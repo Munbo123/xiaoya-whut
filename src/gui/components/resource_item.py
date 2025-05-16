@@ -87,8 +87,7 @@ class ResourceItem(QWidget):
     def _on_download_clicked(self):
         """下载按钮点击处理"""
         # 直接下载，不进行信号传递，减小复杂度
-        # 直接调用下载函数
-        print(f'弹出下载界面：{self.resource.get_name()} {self.resource.get_id()}')
+        pass
         
     def get_resource(self) -> Resource:
         """获取资源对象"""

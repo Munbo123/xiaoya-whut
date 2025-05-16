@@ -214,6 +214,9 @@ class GroupManager:
         """字符串表示"""
         return f"GroupManager(groups: {len(self.groups)}, resources: {self.get_total_resource_count()})"
 
+    def get_login_manager(self) -> XiaoyaLoginManager:
+        """获取登录管理器"""
+        return self.login_manager
 
 if __name__ == "__main__":
     # 测试代码
