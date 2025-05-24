@@ -81,7 +81,7 @@ class GroupManager:
             # 更新课程组信息
             self.groups.clear()
             for group_data in groups_data:
-                group = Group(group_data)
+                group = Group(group_data,login_manager=self.login_manager)
                 self.groups[group.get_id()] = group
                 
                 # 初始化课程组的资源树

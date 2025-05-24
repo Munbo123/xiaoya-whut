@@ -11,11 +11,10 @@ from typing import Dict, List, Optional
 from datetime import datetime
 import logging
 import requests
-try:
-    from src.core.resource_tree import ResourceTree
-except ModuleNotFoundError:
-    # For direct file execution
-    from resource_tree import ResourceTree
+
+from src.core.resource_tree import ResourceTree
+from src.core.task_manager import TaskManager
+from src.core.xiaoya_login_manager import XiaoyaLoginManager
 
 # 配置日志
 logging.basicConfig(
@@ -27,7 +26,7 @@ logger = logging.getLogger('xiaoya.group')
 class Group:
     """表示小雅平台上的一个课程组"""
     
-    def __init__(self, group_data: Dict):
+    def __init__(self, group_data: Dict,login_manager:XiaoyaLoginManager=None):
         """
         初始化课程组
         
@@ -65,6 +64,8 @@ class Group:
         
         # 资源树（需要后续初始化）
         self.resource_tree: Optional[ResourceTree] = None
+        # 
+        self.task_manager = TaskManager(group_id=self.id,login_manager=login_manager)
         
     def _parse_datetime(self, dt_str: Optional[str]) -> Optional[datetime]:
         """
@@ -192,6 +193,10 @@ class Group:
         """获取原始数据"""
         return self._data
     
+    def get_task_manager(self) -> TaskManager:
+        """获取任务管理器"""
+        return self.task_manager
+
     def __str__(self) -> str:
         """字符串表示"""
         return f"Group:{self.name} ({self.term_name}, {self.teacher_names})"

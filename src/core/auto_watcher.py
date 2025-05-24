@@ -191,6 +191,6 @@ if __name__ == "__main__":
     auto_watcher = AutoWatcher(login_manager=login_manager)
     # 获取课程ID和视频路径ID
     group_id = '6630748513288344594'
-    path_id = '6661019185897825952'
+    path_id = '6715654291287219448'
     # 自动观看视频
     auto_watcher.watch_video(group_id, path_id)

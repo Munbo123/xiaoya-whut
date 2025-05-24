@@ -5,6 +5,12 @@ Returns:
     dict: 一个具体资源的详细信息的字典
 """
 
+'''
+url1 = f'https://whut.ai-augmented.com/api/jx-iresource/resource/queryResource?node_id={path_id}'
+'''
+
+
+
 {'code': 0,
 'data': {'assign_to_type': 3,
         'author': '5986462921088058903',
