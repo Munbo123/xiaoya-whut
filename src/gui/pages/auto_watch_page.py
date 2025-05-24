@@ -129,9 +129,11 @@ class TaskCard(QFrame):
         info_layout.addWidget(status_label)
 
         # 选择按钮
-        radio_button = QRadioButton()
-        radio_button.setChecked(False)
-        info_layout.addWidget(radio_button)
+        if str(self.task.get_task_type()) == '1':
+            # 只有是自主观看的任务才能选择
+            radio_button = QRadioButton()
+            radio_button.setChecked(False)
+            info_layout.addWidget(radio_button)
 
         layout.addWidget(info_container)
         layout.addStretch()
@@ -502,6 +504,13 @@ class AutoWatchPage(QWidget):
             QMessageBox.information(self, "操作取消", "任务处理已取消")
             self._refresh_tasks()  # 刷新任务列表以更新状态
 
+    def _refresh(self):
+        """刷新任务列表"""
+        if self.group_manager:
+            self.group_manager.refresh_groups()
+            self._refresh_tasks()
+
+
     def _refresh_tasks(self):
         """刷新所有任务"""
         if not self.group_manager:
@@ -534,7 +543,7 @@ class AutoWatchPage(QWidget):
         """完成选中的任务"""
         # 检查是否有登录管理器
         if not self.login_manager:
-            QMessageBox.warning(self, "错误", "请先登录小")
+            QMessageBox.warning(self, "错误", "请先登录")
             return
             
         # 查找所有选中的任务
@@ -643,7 +652,7 @@ class AutoWatchPage(QWidget):
         self.processing_thread = None
         self.status_widget.setVisible(False)
         QMessageBox.information(self, "完成", "所有任务处理完成！")
-        self._refresh_tasks()  # 刷新任务列表以更新状态
+        self._refresh()  # 强刷新任务列表以更新状态
         
     @Slot(str)
     def _on_error(self, error_msg):
@@ -651,7 +660,7 @@ class AutoWatchPage(QWidget):
         self.processing_thread = None
         self.status_widget.setVisible(False)
         QMessageBox.warning(self, "错误", error_msg)
-        self._refresh_tasks()  # 刷新任务列表
+        self._refresh()  # 强刷新任务列表
 
     def update_group_manager(self, group_manager):
         """更新课程管理器"""
