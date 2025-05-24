@@ -12,8 +12,8 @@ import uuid
 import time
 import logging
 
-from signature_helper import SignatureHelper
-from xiaoya_login_manager import XiaoyaLoginManager
+from src.core.signature_helper import SignatureHelper
+from src.core.xiaoya_login_manager import XiaoyaLoginManager
 
 # 配置日志
 logging.basicConfig(

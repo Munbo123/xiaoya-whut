@@ -25,7 +25,7 @@ USERNAME_KEY = "username"
 class LoginDialog(QDialog):
     """登录对话框"""
     
-    login_success = Signal(XiaoyaLoginManager, UserInfoManager, GroupManager)  # 登录成功信号
+    login_request = Signal(str,str)  # 登录请求信号
     
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -193,6 +193,24 @@ class LoginDialog(QDialog):
                 self.username_edit.setText(username)
                 self.password_edit.setText(password)
                 self.remember_check.setChecked(True)
+
+    def save_credentials(self, username, password):
+        """保存登录凭据"""
+        # 使用keyring保存用户名和密码
+        keyring.set_password(KEYRING_SERVICE, USERNAME_KEY, username)
+        keyring.set_password(KEYRING_SERVICE, username, password)
+    
+    def clear_credentials(self):
+        """清除保存的登录凭据"""
+        # 清除keyring中的用户名和密码
+        try:
+            saved_username = keyring.get_password(KEYRING_SERVICE, USERNAME_KEY)
+            if saved_username:
+                keyring.delete_password(KEYRING_SERVICE, USERNAME_KEY)
+                keyring.delete_password(KEYRING_SERVICE, saved_username)
+        except keyring.errors.PasswordDeleteError:
+            # 如果密码不存在，忽略错误
+            pass
     
     def login(self):
         """登录处理"""
@@ -215,57 +233,19 @@ class LoginDialog(QDialog):
             # 提前关闭登录窗口
             self.accept()
             
-            # 创建登录管理器并执行登录
-            login_manager = XiaoyaLoginManager()
-            login_manager.login(username, password)
-
-            
-            # 创建用户信息管理器和课组管理器
-            user_info_manager = UserInfoManager(login_manager=login_manager)
-            if not user_info_manager.is_info_loaded():
-                raise Exception("获取用户信息失败")
-            
-            # 创建课组管理器
-            group_manager = GroupManager(login_manager=login_manager)
-            if not group_manager.refresh_groups():
-                raise Exception("获取课组信息失败")
-            
             # 如果勾选了记住密码，使用keyring保存凭据
             if self.remember_check.isChecked():
                 # 保存用户名和密码
-                keyring.set_password(KEYRING_SERVICE, USERNAME_KEY, username)
-                keyring.set_password(KEYRING_SERVICE, username, password)
+                self.save_credentials(username, password)
             else:
                 # 清除已保存的凭据
-                try:
-                    saved_username = keyring.get_password(KEYRING_SERVICE, USERNAME_KEY)
-                    if saved_username:
-                        keyring.delete_password(KEYRING_SERVICE, USERNAME_KEY)
-                        keyring.delete_password(KEYRING_SERVICE, saved_username)
-                except keyring.errors.PasswordDeleteError:
-                    # 如果密码不存在，忽略错误
-                    pass
+                self.clear_credentials()
             
-            # 发送登录成功信号
-            self.login_success.emit(login_manager, user_info_manager, group_manager)
+            # 发送登录请求
+            self.login_request.emit(username, password)
             
         except Exception as e:
             self.login_btn.setEnabled(True)
             self.login_btn.setText("登录")
             QMessageBox.critical(self, "错误", f"登录失败: {str(e)}")
     
-    def _on_login_success(self, session):
-        """登录成功后的处理"""
-        # 创建登录管理器和用户信息管理器
-        login_manager = XiaoyaLoginManager(session, self._username)
-        user_info_manager = UserInfoManager(session)
-        group_manager = GroupManager(session)
-
-        # 保存用户名和密码
-        if self._save_password_checkbox.isChecked():
-            keyring.set_password(KEYRING_SERVICE, USERNAME_KEY, self._username)
-            keyring.set_password(KEYRING_SERVICE, self._username, self._password)
-
-        # 发送登录成功信号
-        self.login_success.emit(login_manager, user_info_manager, group_manager)
-        self.accept()

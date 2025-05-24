@@ -1,26 +1,67 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QHBoxLayout, QPushButton, QFrame,QMessageBox
-from PySide6.QtCore import Qt, QSize, Signal
+from PySide6.QtCore import Qt, QSize, Signal,QThread
 from PySide6.QtGui import QPixmap, QFont, QPainter, QPainterPath
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 import qtawesome as qta
+import keyring
 
 from src.gui.components.login_dialog import LoginDialog
+from src.gui.components.login_dialog import KEYRING_SERVICE,USERNAME_KEY
+from src.core.xiaoya_login_manager import XiaoyaLoginManager
+from src.core.user_info_manager import UserInfoManager
+from src.core.group_manager import GroupManager
+
+
+class LoginThread(QThread):
+    """处理异步登录的线程类"""
+    login_success = Signal(object, object, object)  # login_manager, user_info_manager, group_manager
+    login_failed = Signal(str)  # error message
+
+    def __init__(self, username=None, password=None):
+        super().__init__()
+        self.username = username
+        self.password = password
+        self.login_manager = None
+
+    def run(self):
+        try:
+            # 创建登录管理器并执行登录
+            self.login_manager = XiaoyaLoginManager()
+            
+            if self.username and self.password:
+                self.login_manager.login(self.username, self.password)
+            
+
+            # 创建用户信息管理器
+            user_info_manager = UserInfoManager(login_manager=self.login_manager)
+            if user_info_manager.is_info_loaded():
+                # 创建新的课程组管理器
+                group_manager = GroupManager(login_manager=self.login_manager)
+                self.login_success.emit(self.login_manager, user_info_manager, group_manager)
+                return
+            
+            self.login_failed.emit("登录失败或未找到保存的登录信息")
+        except Exception as e:
+            self.login_failed.emit(f"登录失败: {str(e)}")
 
 
 class AccountPage(QWidget):
-    """账户设置页面"""
-    
+    """账户设置页面,账号的登录和登出功能都在此处实现"""
+
     logout_signal = Signal()  # 用于通知主窗口用户已退出登录
-    login_success = Signal(object, object, object)  # 用于通知主窗口登录成功，传递(login_manager, user_info_manager, group_manager)
+    login_success_signal = Signal(object, object, object)  # 用于通知主窗口登录成功，传递(login_manager, user_info_manager, group_manager)
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.parent_widget = parent
+        self.login_manager:XiaoyaLoginManager = None
+        self.user_info_manager:UserInfoManager = None
+        self.group_manager:GroupManager = None
         self.network_manager = QNetworkAccessManager(self)
-        self.user_info_manager = None  # 用户信息管理器实例
         self.is_logging_in = False  # 登录中状态标记
-        self.group_manager = None  # 改为group_manager
         self.init_ui()
         self.update_ui()
+        self.connect_signals()
     
     def init_ui(self):
         """初始化UI"""
@@ -102,7 +143,6 @@ class AccountPage(QWidget):
                 background-color: #0369a1;
             }
         """)
-        self.login_btn.clicked.connect(self.show_login_dialog)
         
         self.logout_btn = QPushButton("退出登录")
         self.logout_btn.setFixedSize(100, 40)
@@ -123,7 +163,6 @@ class AccountPage(QWidget):
                 background-color: #D1D5DB;
             }
         """)
-        self.logout_btn.clicked.connect(self.logout)
         
         button_layout.addWidget(self.login_btn)
         button_layout.addWidget(self.logout_btn)
@@ -138,6 +177,18 @@ class AccountPage(QWidget):
         main_layout.addWidget(card)
         main_layout.addStretch()
     
+    def connect_signals(self):
+        """连接信号"""
+        # 连接按钮信号
+        self.login_btn.clicked.connect(self.show_login_dialog)
+        self.logout_btn.clicked.connect(self.logout)
+
+        # 连接login_dialog中的登录请求信号
+        # 这个是在创建的时候再连接的
+
+        # 连接登录线程的信号
+        # 这个也是在创建的时候再连接的
+
     def set_rounded_avatar(self, pixmap: QPixmap):
         """设置圆形头像"""
         if pixmap.isNull():
@@ -179,22 +230,6 @@ class AccountPage(QWidget):
                 self.set_rounded_avatar(pixmap)
         reply.deleteLater()
     
-    def update_ui_with_user_info(self, user_info_manager):
-        """使用用户信息管理器更新UI"""
-        if not user_info_manager or not user_info_manager.is_info_loaded():
-            return
-            
-        user_info = user_info_manager.get_user_info()
-        self.name_label.setText(user_info.get('nickname', '未知用户'))
-        self.school_label.setText(user_info.get('school_name', ''))
-        
-        # 加载头像
-        avatar_url = user_info.get('avatar_url')
-        if avatar_url:
-            self.load_avatar(avatar_url)
-        else:
-            self.avatar_label.setPixmap(self.default_avatar)
-    
     def update_ui(self):
         """更新UI状态"""
         if self.user_info_manager and self.user_info_manager.is_info_loaded():
@@ -228,23 +263,51 @@ class AccountPage(QWidget):
     
     def show_login_dialog(self):
         """显示登录对话框"""
-        # 设置登录中状态
-        self.is_logging_in = True
-        self.update_ui()
-        
         dialog = LoginDialog(self)
-        dialog.login_success.connect(self.handle_login_success)
+        dialog.login_request.connect(self.login)
         if dialog.exec() == LoginDialog.Accepted:
-            self.login_signal.emit()
+            # 设置登录中状态
+            self.is_logging_in = True
+            self.update_ui()
 
     def handle_login_success(self, login_manager, user_info_manager, group_manager):
         """处理登录成功"""
         self.user_info_manager = user_info_manager
         self.group_manager = group_manager
+        self.login_manager = login_manager
         self.update_ui()
         # 发送登录成功信号，传递三个管理器对象
-        self.login_success.emit(login_manager, user_info_manager, group_manager)
+        self.login_success_signal.emit(login_manager, user_info_manager, group_manager)
     
+    def handle_login_failed(self, error_message):
+        """处理登录失败"""
+        self.is_logging_in = False
+        self.update_ui()
+        QMessageBox.critical(self, "登录失败", error_message)
+    
+    def login(self,username=None,password=None):
+        """登录处理"""
+        # 设置登录中状态
+        self.is_logging_in = True
+        self.update_ui()
+        
+        # 如果用户名和密码为空，则尝试从keyring中获取
+        if username is None or password is None:
+            username = keyring.get_password(KEYRING_SERVICE, USERNAME_KEY)
+            if username:
+                password = keyring.get_password(KEYRING_SERVICE, username)
+        
+        # 如果用户名和密码仍然为空，不执行自动登录
+        if username is None or password is None:
+            return
+        
+
+        # 创建登录线程
+        self.login_thread = LoginThread(username=username, password=password)
+        self.login_thread.login_success.connect(self.handle_login_success)
+        self.login_thread.login_failed.connect(self.handle_login_failed)
+        self.login_thread.start()
+
     def logout(self):
         """退出登录"""
         reply = QMessageBox.question(
@@ -256,8 +319,10 @@ class AccountPage(QWidget):
         )
         
         if reply == QMessageBox.Yes:
-            # 清除用户信息管理器
+            # 清除所有管理器
             self.user_info_manager = None
+            self.group_manager = None
+            self.login_manager = None            
             self.is_logging_in = False
             
             # 更新UI

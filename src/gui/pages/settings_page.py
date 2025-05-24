@@ -15,15 +15,18 @@ from PySide6.QtCore import Signal
 from src.gui.pages.account_page import AccountPage
 from src.gui.pages.general_page import GeneralPage
 from src.gui.pages.about_page import AboutPage
-
+from src.core.group_manager import GroupManager
+from src.core.xiaoya_login_manager import XiaoyaLoginManager
+from src.core.user_info_manager import UserInfoManager
 
 class SettingsPage(QWidget):
     """设置页面"""
     
-    login_success = Signal(object, object, object)  # 用于传递(login_manager, user_info_manager, group_manager)
-    
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self,login_manager=None,group_manager=None,user_info_manager=None):
+        super().__init__()
+        self.group_manager:GroupManager = group_manager
+        self.login_manager:XiaoyaLoginManager = login_manager
+        self.user_info_manager:UserInfoManager = user_info_manager
         self.init_ui()
 
     
@@ -38,9 +41,9 @@ class SettingsPage(QWidget):
         """)
 
         # 创建所有设置界面
-        self.general_page = GeneralPage()
-        self.about_page = AboutPage()
-        self.accout_page = AccountPage()
+        self.general_page = GeneralPage(self)
+        self.about_page = AboutPage(self)
+        self.accout_page = AccountPage(self)
         self.stacked_widget.addWidget(self.accout_page)
         self.stacked_widget.addWidget(self.general_page)
         self.stacked_widget.addWidget(self.about_page)
@@ -115,6 +118,18 @@ class SettingsPage(QWidget):
         layout.addWidget(self.stacked_widget)
         layout.addStretch()
 
+    def update_login_manager(self, login_manager):
+        """更新登录管理器"""
+        self.login_manager = login_manager
+
+    def update_group_manager(self, group_manager):
+        """更新课程管理器"""
+        self.group_manager = group_manager
+
+    
+    def update_user_info_manager(self, user_info_manager):
+        """更新用户信息管理器"""
+        self.user_info_manager = user_info_manager
 
 
 

@@ -64,5 +64,5 @@ class TaskManager:
     def update_data(self,target_data):
         for resource in self.resource_data:
             if target_data['node_id'] == resource['id']:
-                target_data['name'] = resource['name']
+                target_data.update(resource)
                 break

@@ -14,13 +14,17 @@ from src.gui.components.course_card_grid import CourseCardGrid
 from src.gui.pages.resource_download_page import ResourceDownloadPage
 from src.core.group import Group
 from src.core.group_manager import GroupManager
+from src.core.xiaoya_login_manager import XiaoyaLoginManager
+from src.core.user_info_manager import UserInfoManager
 
 class DownloadPage(QWidget):
     """资源下载页面，用于下载小雅平台上的课程资源"""
     
-    def __init__(self, group_manager=None):
+    def __init__(self, login_manager=None,group_manager=None,user_info_manager=None):
         super().__init__()
         self.group_manager:GroupManager = group_manager
+        self.login_manager:XiaoyaLoginManager = login_manager
+        self.user_info_manager:UserInfoManager = user_info_manager
         self.init_ui()
     
     def init_ui(self):
@@ -48,7 +52,7 @@ class DownloadPage(QWidget):
         courses_layout.addWidget(line)
         
         # 课程卡片网格视图
-        self.course_grid = CourseCardGrid(self.group_manager)
+        self.course_grid = CourseCardGrid(parent=self)
         self.course_grid.courseSelected.connect(self.on_course_selected)
         courses_layout.addWidget(self.course_grid)
         
@@ -68,7 +72,7 @@ class DownloadPage(QWidget):
         if group:
             print(f"找到课程: {group.get_name()}")  # 调试信息
             # 创建并显示资源下载页面
-            resource_page = ResourceDownloadPage(group,self.get_login_manager())
+            resource_page = ResourceDownloadPage(group,self.login_manager)
             resource_page.back_clicked.connect(self.back_to_course_list)
             self.stack.addWidget(resource_page)
             self.stack.setCurrentWidget(resource_page)
@@ -93,6 +97,12 @@ class DownloadPage(QWidget):
         self.group_manager = group_manager
         self.course_grid.update_group_manager(group_manager)
 
-    def get_login_manager(self):
-        """获取登录管理器"""
-        return self.group_manager.get_login_manager()
+    def update_login_manager(self, login_manager):
+        """更新登录管理器"""
+        self.login_manager = login_manager
+        self.course_grid.update_login_manager(login_manager)
+    
+    def update_user_info_manager(self, user_info_manager):
+        """更新用户信息管理器"""
+        self.user_info_manager = user_info_manager
+        self.course_grid.update_user_info_manager(user_info_manager)

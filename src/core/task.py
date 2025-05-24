@@ -31,6 +31,46 @@ class Task:
             "parent_id": "6664647493881482433",
             "quote_id": "6664647514072845333"
         },
+
+        {
+            "task_id": "6674288176795748176",
+            "assign_to_type": 3,
+            "task_type": 1,
+            "start_time": "2025-03-18T10:19:07.907Z",
+            "end_time": "2025-03-25T15:59:59.999Z",
+            "is_allow_after_submitted": true,
+            "discussion_channel_type": 0,
+            "watch_min_minutes": 2,
+            "task_assign_to_id": "6630748834572050390",
+            "id": "6659161511031789508",
+            "parent_id": "6659161511031789567",
+            "path": "6630748834580438999/6659161511031788547/6659161511031789567/6659161511031789508",
+            "level": null,
+            "name": "MGU方法.mp4",
+            "type": 9,
+            "mimetype": null,
+            "creator": "5986462714132710423",
+            "group_id": "6630748834572050390",
+            "quote_id": "6659161513640603160",
+            "del": 1,
+            "public": 2,
+            "lock": 1,
+            "download": 1,
+            "copy": 1,
+            "property": {
+                "task_type": 1
+            },
+            "created_at": "2025-02-25T13:25:11.735Z",
+            "updated_at": "2025-03-18T10:19:11.813Z",
+            "sort_position": 0,
+            "finish_teaching": 1,
+            "published": 1,
+            "publish_record_id": "0",
+            "tag": null,
+            "resource_type": 5,
+            "author": "5986462714132710423",
+            "is_task": true
+        },
         """
         self._data = data
 
@@ -69,8 +109,8 @@ class Task:
         return self._format_time(self._data.get("end_time"))
 
     def get_task_type(self):
-        """获取任务类型"""
-        return self._data.get("task_type")
+        """获取任务类型,如果不是任务，则返回None"""
+        return self._data.get("task_type",None)
 
     def get_finish_time(self):
         """获取完成时间，格式化为YYYY-MM-DD"""
@@ -79,3 +119,15 @@ class Task:
     def is_finished(self):
         """判断任务是否已完成,2表示已完成"""
         return str(self._data.get("finish")) == "2"
+
+    def get_type(self):
+        """获取任务类型"""
+        return self._data.get("type", None)
+
+    def get_resource_type(self):
+        """获取资源类型"""
+        return self._data.get("resource_type", None)
+    
+    def is_task(self):
+        """判断是否是任务,若果没有is_task字段，则说明是从tasknotice中取的，默认是任务"""
+        return self._data.get("is_task", True)

@@ -21,9 +21,11 @@ class CourseCardGrid(QWidget):
     
     courseSelected = Signal(str)  # 课程被选择时发出信号
     
-    def __init__(self, group_manager=None, parent=None):
+    def __init__(self,parent=None):
         super().__init__(parent)
-        self.group_manager = group_manager
+        self.group_manager = parent.group_manager if parent else None
+        self.login_manager = parent.login_manager if parent else None
+        self.user_info_manager = parent.user_info_manager if parent else None
         self.loading = False
         self.init_ui()
         
@@ -251,3 +253,11 @@ class CourseCardGrid(QWidget):
         """更新课程管理器"""
         self.group_manager = group_manager
         self.load_courses()
+    
+    def update_login_manager(self, login_manager):
+        """更新登录管理器"""
+        self.login_manager = login_manager
+
+    def update_user_info_manager(self, user_info_manager):
+        """更新用户信息管理器"""
+        self.user_info_manager = user_info_manager

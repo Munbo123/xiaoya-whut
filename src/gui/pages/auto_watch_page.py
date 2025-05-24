@@ -35,14 +35,20 @@ from PySide6.QtWidgets import (
     QSpinBox,
     QDoubleSpinBox,
     QTimeEdit,
+    QMessageBox,
 )
-from PySide6.QtCore import Qt, Signal, Slot, QSize, QTime
+from PySide6.QtCore import Qt, Signal, Slot, QSize, QTime, QThread, QMutex
 from PySide6.QtGui import QIcon
+import threading
+import time
 
-from src.gui.pages.download_page import CourseCardGrid
+
 from src.core.group_manager import GroupManager
 from src.core.group import Group
 from src.core.task import Task
+from src.core.auto_watcher import AutoWatcher
+from src.core.xiaoya_login_manager import XiaoyaLoginManager
+from src.core.user_info_manager import UserInfoManager
 
 
 class TaskCard(QFrame):
@@ -263,13 +269,85 @@ class CourseGroupWidget(QWidget):
             self.refresh_tasks()
 
 
+class TaskProcessingThread(QThread):
+    """用于处理自动完成任务的后台线程"""
+    progress_updated = Signal(int, int)  # 当前进度, 总数
+    task_completed = Signal(Task, bool)  # 任务, 是否成功
+    all_tasks_completed = Signal()  # 所有任务完成信号
+    error_occurred = Signal(str)  # 错误信息
+
+    def __init__(self, tasks, login_manager):
+        super().__init__()
+        self.tasks = tasks
+        self.login_manager = login_manager
+        self.auto_watcher = None
+        self.mutex = QMutex()
+        self.is_running = True
+
+    def run(self):
+        """线程运行函数"""
+        try:
+            self.auto_watcher = AutoWatcher(login_manager=self.login_manager)
+            total = len(self.tasks)
+            
+            for i, task in enumerate(self.tasks):
+                if not self.is_running:
+                    break
+                    
+                self.progress_updated.emit(i + 1, total)
+                success = self._process_task(task)
+                self.task_completed.emit(task, success)
+                
+                # # 短暂暂停，避免请求过于频繁
+                # time.sleep(0.5)
+                
+            self.all_tasks_completed.emit()
+        except Exception as e:
+            self.error_occurred.emit(f"任务处理错误: {str(e)}")
+
+    def _process_task(self, task:Task):
+        """处理单个任务"""
+        try:
+            # 获取任务信息
+            group_id = task.get_group_id()
+            path_id = task.get_node_id()
+            is_task = task.is_task()
+            type1 = task.get_type()
+
+            if not is_task:
+                # 如果不是任务，直接返回
+                return False
+            
+            # 根据资源类型选择不同的观看方法
+            if str(type1) == "6":
+                return self.auto_watcher.watch_document(group_id, path_id)
+            elif str(type1) == "9":
+                return self.auto_watcher.watch_video(group_id, path_id)
+            else:
+                # 其他类型不处理
+                return False
+        except Exception as e:
+            print(f"处理任务时出错: {str(e)}")
+            return False
+            
+    def stop(self):
+        """停止线程"""
+        self.mutex.lock()
+        self.is_running = False
+        self.mutex.unlock()
+
+
 class AutoWatchPage(QWidget):
     """自动观看页面，用于自动完成小雅平台上的视频观看任务"""
 
-    def __init__(self, group_manager=None):
+    def __init__(self, login_manager=None ,group_manager=None, user_info_manager=None):
         super().__init__()
-        self.group_manager = group_manager
+        self.group_manager:GroupManager = group_manager
+        self.login_manager:XiaoyaLoginManager = login_manager
+        self.user_info_manager:UserInfoManager = user_info_manager
         self.show_all_courses = True  # 是否显示所有任务
+        self.processing_thread = None  # 处理线程
+        self.processing_tasks = []  # 正在处理的任务
         self._init_ui()
 
     def _init_ui(self):
@@ -344,6 +422,38 @@ class AutoWatchPage(QWidget):
         toolbar_layout.addWidget(complete_all_button)
         layout.addWidget(toolbar)
 
+        # 创建任务进度状态区域
+        self.status_widget = QWidget()
+        self.status_widget.setVisible(False)
+        status_layout = QVBoxLayout(self.status_widget)
+        
+        # 进度信息
+        progress_info_layout = QHBoxLayout()
+        self.progress_label = QLabel("正在处理任务...")
+        progress_info_layout.addWidget(self.progress_label)
+        
+        self.progress_detail = QLabel("0/0")
+        self.progress_detail.setAlignment(Qt.AlignRight)
+        progress_info_layout.addWidget(self.progress_detail)
+        
+        status_layout.addLayout(progress_info_layout)
+        
+        # 进度条
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        status_layout.addWidget(self.progress_bar)
+        
+        # 取消按钮
+        cancel_btn_layout = QHBoxLayout()
+        cancel_btn_layout.addStretch()
+        self.cancel_button = QPushButton("取消")
+        self.cancel_button.clicked.connect(self._cancel_processing)
+        cancel_btn_layout.addWidget(self.cancel_button)
+        status_layout.addLayout(cancel_btn_layout)
+        
+        layout.addWidget(self.status_widget)
+
         # 创建滚动区域
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -381,14 +491,21 @@ class AutoWatchPage(QWidget):
         )
         # 重新刷新任务列表
         self._refresh_tasks()
+        
+    @Slot()
+    def _cancel_processing(self):
+        """取消任务处理"""
+        if self.processing_thread and self.processing_thread.isRunning():
+            self.processing_thread.stop()
+            self.processing_thread = None
+            self.status_widget.setVisible(False)
+            QMessageBox.information(self, "操作取消", "任务处理已取消")
+            self._refresh_tasks()  # 刷新任务列表以更新状态
 
     def _refresh_tasks(self):
         """刷新所有任务"""
         if not self.group_manager:
             return
-
-        # 刷新组管理器
-        self.group_manager.refresh_groups()
 
         # 清除现有内容
         while self.content_layout.count():
@@ -415,42 +532,136 @@ class AutoWatchPage(QWidget):
     @Slot()
     def _complete_selected_tasks(self):
         """完成选中的任务"""
+        # 检查是否有登录管理器
+        if not self.login_manager:
+            QMessageBox.warning(self, "错误", "请先登录小")
+            return
+            
         # 查找所有选中的任务
         selected_tasks = []
         for i in range(self.content_layout.count()):
             course_widget = self.content_layout.itemAt(i).widget()
             if isinstance(course_widget, CourseGroupWidget):
-                for j in range(course_widget.layout().count()):
-                    item = course_widget.layout().itemAt(j).widget()
-                    if isinstance(item, QWidget):
-                        for child in item.findChildren(TaskCard):
-                            radio = child.findChild(QRadioButton)
-                            if radio and radio.isChecked():
-                                selected_tasks.append(child.task)
+                tasks_layout = course_widget.tasks_layout
+                for j in range(tasks_layout.count()):
+                    item = tasks_layout.itemAt(j).widget()
+                    if isinstance(item, TaskCard):
+                        radio = item.findChild(QRadioButton)
+                        if radio and radio.isChecked():
+                            selected_tasks.append(item.task)
 
-        # TODO: 执行完成任务的操作
-        if selected_tasks:
-            print(f"开始完成 {len(selected_tasks)} 个选中的任务")
-            # 这里添加完成任务的具体逻辑
+        # 如果没有选中任务，显示提示
+        if not selected_tasks:
+            QMessageBox.information(self, "提示", "请先选择需要完成的任务")
+            return
+
+        # 确认操作
+        reply = QMessageBox.question(
+            self,
+            "确认操作",
+            f"确定要完成选中的 {len(selected_tasks)} 个任务吗？",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            self._process_tasks(selected_tasks)
 
     @Slot()
     def _complete_all_tasks(self):
         """完成所有任务"""
+        # 检查是否有登录管理器
+        if not self.login_manager:
+            QMessageBox.warning(self, "错误", "请先登录")
+            return
+            
+        # 收集所有未完成的任务
         all_tasks = []
-        for i in range(self.content_layout.count()):
-            course_widget = self.content_layout.itemAt(i).widget()
-            if isinstance(course_widget, CourseGroupWidget):
-                task_manager = course_widget.group.get_task_manager()
-                for task in task_manager.task_list:
-                    if not task.is_finished():
-                        all_tasks.append(task)
+        for group in self.group_manager.get_all_groups():
+            task_manager = group.get_task_manager()
+            for task in task_manager.task_list:
+                if not task.is_finished():
+                    all_tasks.append(task)
 
-        # TODO: 执行完成任务的操作
-        if all_tasks:
-            print(f"开始完成所有 {len(all_tasks)} 个未完成的任务")
-            # 这里添加完成任务的具体逻辑
+        # 如果没有未完成的任务，显示提示
+        if not all_tasks:
+            QMessageBox.information(self, "提示", "没有未完成的任务")
+            return
+
+        # 确认操作
+        reply = QMessageBox.question(
+            self,
+            "确认操作",
+            f"确定要完成所有 {len(all_tasks)} 个未完成的任务吗？",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            self._process_tasks(all_tasks)
+            
+    def _process_tasks(self, tasks):
+        """处理一组任务"""
+        # 存储正在处理的任务
+        self.processing_tasks = tasks
+        
+        # 显示进度条区域
+        self.status_widget.setVisible(True)
+        self.progress_label.setText("正在处理任务...")
+        self.progress_detail.setText(f"0/{len(tasks)}")
+        self.progress_bar.setRange(0, len(tasks))
+        self.progress_bar.setValue(0)
+        
+        # 创建并启动处理线程
+        self.processing_thread = TaskProcessingThread(tasks, self.login_manager)
+        
+        # 连接信号
+        self.processing_thread.progress_updated.connect(self._update_progress)
+        self.processing_thread.task_completed.connect(self._on_task_completed)
+        self.processing_thread.all_tasks_completed.connect(self._on_all_tasks_completed)
+        self.processing_thread.error_occurred.connect(self._on_error)
+        
+        # 启动线程
+        self.processing_thread.start()
+        
+    @Slot(int, int)
+    def _update_progress(self, current, total):
+        """更新进度条"""
+        self.progress_detail.setText(f"{current}/{total}")
+        self.progress_bar.setValue(current)
+        
+    @Slot(object, bool)
+    def _on_task_completed(self, task, success):
+        """任务完成回调"""
+        status = "成功" if success else "失败"
+        task_name = task.get_name() or task.get_task_id()
+        self.progress_label.setText(f"完成任务: {task_name} ({status})")
+             
+    @Slot()
+    def _on_all_tasks_completed(self):
+        """所有任务完成回调"""
+        self.processing_thread = None
+        self.status_widget.setVisible(False)
+        QMessageBox.information(self, "完成", "所有任务处理完成！")
+        self._refresh_tasks()  # 刷新任务列表以更新状态
+        
+    @Slot(str)
+    def _on_error(self, error_msg):
+        """错误处理回调"""
+        self.processing_thread = None
+        self.status_widget.setVisible(False)
+        QMessageBox.warning(self, "错误", error_msg)
+        self._refresh_tasks()  # 刷新任务列表
 
     def update_group_manager(self, group_manager):
         """更新课程管理器"""
-        self.group_manager = group_manager
+        self.group_manager:GroupManager = group_manager
         self._refresh_tasks()
+        
+    def update_login_manager(self, login_manager):
+        """更新登录管理器"""
+        self.login_manager = login_manager
+
+    def update_user_info_manager(self, user_info_manager):
+        """更新用户信息管理器"""
+        self.user_info_manager = user_info_manager
