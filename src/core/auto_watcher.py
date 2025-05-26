@@ -70,14 +70,16 @@ class AutoWatcher:
         """
 
         # 获取任务id
-        url = f'https://whut.ai-augmented.com/api/jx-iresource/resource/queryResource?node_id={path_id}'
+        url = f'https://whut.ai-augmented.com/api/jx-iresource/resource/queryCourseResources?group_id={group_id}'
         response = self.session.get(url, headers=self.headers)
-        task_id = response.json()['data']['task_id']
+        for resource in response.json()['data']:
+            if resource['id'] == path_id:
+                task_id = resource['task_id']
+                break
 
         # 提交任务
         data = {
             'group_id': group_id,
-            'media_id': path_id,
             'task_id': task_id,
         }
 
