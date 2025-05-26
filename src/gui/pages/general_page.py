@@ -20,7 +20,16 @@ class GeneralPage(QWidget):
 
         # 通用功能设置组
         general_label = QLabel("通用功能设置")
-        general_label.setStyleSheet("font-size: 20px; font-weight: bold;")
+        general_label.setStyleSheet(
+            """
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            padding: 10px 0;
+            border-bottom: 1px solid #E5E7EB;
+            background-color:#F9FAFB;
+        """
+        )
         general_label.setFixedHeight(40)
         
         layout.addWidget(general_label)
@@ -36,7 +45,7 @@ class GeneralPage(QWidget):
         # 下载路径设置项
         self.download_path_item = SettingItem(
             name="下载路径",
-            icon='fa5s.folder-open',
+            icon=qta.icon('fa5s.folder', color='black'),
             description="设置下载文件的保存路径",
             value=default_path,
             value_type=QPushButton

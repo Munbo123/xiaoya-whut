@@ -1,12 +1,13 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QHBoxLayout, QPushButton, QFrame,QMessageBox
-from PySide6.QtCore import Qt, QSize, Signal,QThread
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QHBoxLayout, QPushButton, QFrame, QMessageBox
+from PySide6.QtCore import Qt, QSize, Signal, QThread
 from PySide6.QtGui import QPixmap, QFont, QPainter, QPainterPath
 from PySide6.QtNetwork import QNetworkAccessManager, QNetworkRequest, QNetworkReply
 import qtawesome as qta
 import keyring
 
 from src.gui.components.login_dialog import LoginDialog
-from src.gui.components.login_dialog import KEYRING_SERVICE,USERNAME_KEY
+from src.gui.components.login_dialog import KEYRING_SERVICE, USERNAME_KEY
+from src.gui.components import MessageBox
 from src.core.xiaoya_login_manager import XiaoyaLoginManager
 from src.core.user_info_manager import UserInfoManager
 from src.core.group_manager import GroupManager
@@ -283,7 +284,7 @@ class AccountPage(QWidget):
         """处理登录失败"""
         self.is_logging_in = False
         self.update_ui()
-        QMessageBox.critical(self, "登录失败", error_message)
+        MessageBox.critical(self, "登录失败", error_message)
     
     def login(self,username=None,password=None):
         """登录处理"""
@@ -306,16 +307,16 @@ class AccountPage(QWidget):
         self.login_thread = LoginThread(username=username, password=password)
         self.login_thread.login_success.connect(self.handle_login_success)
         self.login_thread.login_failed.connect(self.handle_login_failed)
-        self.login_thread.start()
+        self.login_thread.start()   
 
     def logout(self):
         """退出登录"""
-        reply = QMessageBox.question(
+        reply = MessageBox.question(
             self,
             "确认退出",
             "确定要退出登录吗？",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
+            buttons=QMessageBox.Yes | QMessageBox.No,
+            default_button=QMessageBox.No
         )
         
         if reply == QMessageBox.Yes:
@@ -329,4 +330,4 @@ class AccountPage(QWidget):
             self.update_ui()
             # 发送退出信号
             self.logout_signal.emit()
-            QMessageBox.information(self, "提示", "已退出登录")
+            MessageBox.information(self, "提示", "已退出登录")

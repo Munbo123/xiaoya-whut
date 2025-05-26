@@ -45,14 +45,19 @@ class ResourceDownloadPage(QWidget):
         title_frame.setStyleSheet("""
             QFrame {
                 background: white;
-                border-bottom: 1px solid #e5e7eb;
+                color: #111827;
+                padding: 10px 0 0 10px;
             }
         """)
         title_layout = QVBoxLayout(title_frame)
         title_layout.setContentsMargins(20, 15, 20, 15)
-          # 课程名称
+        # 课程名称
         course_name = QLabel(self.group.get_name())
+        course_name.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        course_name.setWordWrap(True)
+        course_name.setStyleSheet("font-weight: bold;")
         course_name.setFont(QFont("Microsoft YaHei", 16, QFont.Bold))
+        course_name.setStyleSheet("color: #111827;")
         title_layout.addWidget(course_name)
         
         layout.addWidget(title_frame)
@@ -63,6 +68,8 @@ class ResourceDownloadPage(QWidget):
             QFrame {
                 background: white;
                 border-bottom: 1px solid #e5e7eb;
+                padding: 10px 20px;
+                color: #111827;
             }
         """)
         button_layout = QHBoxLayout(button_frame)

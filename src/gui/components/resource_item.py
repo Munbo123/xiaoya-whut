@@ -33,6 +33,22 @@ class ResourceItem(QWidget):
         
         # 选择按钮
         self.select_btn = QRadioButton()
+        self.select_btn.setCursor(Qt.PointingHandCursor)
+        self.select_btn.setStyleSheet("""
+            QRadioButton {
+                spacing: 5px;
+            }
+            QRadioButton::indicator {
+                width: 16px;
+                height: 16px;
+            }
+            QRadioButton::indicator:checked {
+                image: url(assets/pictures/radio-checked.png);
+            }
+            QRadioButton::indicator:unchecked {
+                image: url(assets/pictures/radio-unchecked.png);
+            }
+        """)
         self.select_btn.clicked.connect(self._on_selection_changed)
         layout.addWidget(self.select_btn)
         if self.is_selected:
@@ -41,6 +57,8 @@ class ResourceItem(QWidget):
         
         # 资源名称
         self.name_label = QLabel(self.resource.get_name())
+        self.name_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.name_label.setStyleSheet("color: #333;")
         self.name_label.setFont(QFont("Microsoft YaHei", 10))
         self.name_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         layout.addWidget(self.name_label)
@@ -55,6 +73,8 @@ class ResourceItem(QWidget):
                 border: none;
                 border-radius: 16px;
                 background: transparent;
+                padding: 4px;
+                color: #0369a1;
             }
             QPushButton:hover {
                 background: #e5f3fc;

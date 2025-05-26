@@ -53,6 +53,7 @@ class LoginDialog(QDialog):
         title_icon = QLabel()
         title_icon.setPixmap(QPixmap("assets/pictures/Appicon.ico").scaled(32, 32, Qt.KeepAspectRatio))
         title_text = QLabel("登录小雅平台")
+        title_text.setStyleSheet("color: #0369a1;")
         title_text.setFont(QFont("微软雅黑", 16, QFont.Bold))
         
         title_layout.addWidget(title_icon)
@@ -75,6 +76,7 @@ class LoginDialog(QDialog):
                 border-radius: 4px;
                 padding: 5px 10px;
                 background: white;
+                color: #333;
             }
             QLineEdit:focus {
                 border: 1px solid #0369a1;
@@ -96,6 +98,7 @@ class LoginDialog(QDialog):
                 border-radius: 4px;
                 padding: 5px 10px;
                 background: white;
+                color: #333;
             }
             QLineEdit:focus {
                 border: 1px solid #0369a1;

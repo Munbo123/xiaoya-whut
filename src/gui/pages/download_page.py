@@ -42,7 +42,14 @@ class DownloadPage(QWidget):
         
         # 添加标题
         title_label = QLabel("资源下载")
-        title_label.setStyleSheet("font-size: 18px; font-weight: bold; margin: 10px;")
+        title_label.setStyleSheet("""
+        QLabel {
+            font-size: 18px; 
+            font-weight: bold;
+            margin: 10px;
+            color: #333;
+        }
+        """)
         courses_layout.addWidget(title_label)
         
         # 添加分割线

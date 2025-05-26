@@ -20,10 +20,6 @@ from src.gui.pages.auto_watch_page import AutoWatchPage
 from src.gui.pages.settings_page import SettingsPage
 from src.gui.components.title_bar import TitleBar  # 导入自定义标题栏
 
-import keyring
-from src.core.xiaoya_login_manager import XiaoyaLoginManager
-from src.core.user_info_manager import UserInfoManager
-from src.core.group_manager import GroupManager  # 更新为新的GroupManager
 
 class MainWindow(QMainWindow):
     """主窗口类，包含左侧标签栏和右侧内容区域"""
@@ -256,6 +252,7 @@ class MainWindow(QMainWindow):
                 text-align: left;
                 border-left: 3px solid transparent;
                 background-color: #F0F0F0;
+                color:black;    /* 显式设置文字为黑色，防止跟随系统导致文字和背景颜色重合导致看不清 */
             }
             QPushButton:hover {
                 background-color: #E6E6E6;
@@ -270,7 +267,8 @@ class MainWindow(QMainWindow):
                     border-left: 3px solid #0369a1;
                 }
             """
-        else:            return base_style
+        else:
+            return base_style
             
     def on_side_button_clicked(self):
         """侧边栏按钮点击处理"""
@@ -330,6 +328,12 @@ class MainWindow(QMainWindow):
         self.setStatusBar(status_bar)
         
         self.status_label = QLabel("就绪")
+        self.status_label.setStyleSheet("""
+            QLabel {
+                color: #555;
+                font-size: 12px;
+            }
+        """)
         status_bar.addWidget(self.status_label, 1)
 
     def show_about_dialog(self):

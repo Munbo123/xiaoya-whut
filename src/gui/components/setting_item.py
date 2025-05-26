@@ -18,7 +18,7 @@ class SettingItem(QWidget):
         """
         super().__init__(parent=None)
 
-        self.icon = icon if icon else qta.icon('fa5s.cog')
+        self.icon = icon if icon else qta.icon('fa5s.cog', color='black')  # 默认图标
         self.name = name 
         self.description = description
         self.sub_settings = sub_settings if sub_settings else []
@@ -56,7 +56,7 @@ class SettingItem(QWidget):
 
         # 图标布局
         icon_label = QLabel()
-        icon_label.setPixmap(qta.icon(self.icon).pixmap(22))  # 使用更小的图标
+        icon_label.setPixmap(self.icon.pixmap(22))  # 使用更小的图标
         icon_label.setFixedSize(22, 22)
         icon_label.setStyleSheet("margin: 0;")
         frame_layout.addWidget(icon_label, 0, Qt.AlignVCenter)

@@ -39,6 +39,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal, Slot, QSize, QTime, QThread, QMutex
 from PySide6.QtGui import QIcon
+import qtawesome as qta
 import threading
 import time
 
@@ -49,6 +50,7 @@ from src.core.task import Task
 from src.core.auto_watcher import AutoWatcher
 from src.core.xiaoya_login_manager import XiaoyaLoginManager
 from src.core.user_info_manager import UserInfoManager
+from src.gui.components import MessageBox
 
 
 class TaskCard(QFrame):
@@ -98,7 +100,14 @@ class TaskCard(QFrame):
 
         # 任务名称或ID
         id_label = QLabel(str(self.task.get_name() or self.task.get_task_id()))
-        id_label.setStyleSheet("font-weight: bold;")
+        id_label.setStyleSheet(
+            """
+            QLabel {
+                font-weight: bold;
+                color: #333333;
+            }
+        """
+        )
         name_layout.addWidget(id_label)
         name_layout.addStretch()  # 添加弹性空间
         layout.addWidget(name_container)
@@ -161,12 +170,21 @@ class CourseGroupWidget(QWidget):
                 background-color: #f0f0f0;
                 border-radius: 4px;
                 padding: 5px;
+                color: #333333;
             }
         """
         )
         title_layout = QHBoxLayout(title_widget)
         title_label = QLabel(self.group.get_name())
-        title_label.setStyleSheet("font-size: 16px; font-weight: bold;")
+        title_label.setStyleSheet(
+            """
+            QLabel {
+                font-size: 16px;
+                font-weight: bold;
+                color: #333333;
+            }
+        """
+        )
         title_layout.addWidget(title_label)
         layout.addWidget(title_widget)
 
@@ -361,12 +379,41 @@ class AutoWatchPage(QWidget):
 
         # 刷新按钮
         refresh_button = QPushButton("刷新任务")
-        refresh_button.setIcon(QIcon.fromTheme("view-refresh"))
+        refresh_button.setStyleSheet(
+            """
+            QPushButton {
+                background-color: #f0f0f0;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                padding: 5px 15px;
+                color: #333;
+            }
+            QPushButton:hover {
+                background-color: #e0e0e0;
+            }
+        """
+        )
+        refresh_icon = qta.icon("fa5s.sync", color="#333")  # 黑色刷新图标
+        refresh_button.setIcon(refresh_icon)
         refresh_button.clicked.connect(self._refresh_tasks)
         toolbar_layout.addWidget(refresh_button)
 
         # 过滤按钮
         self.filter_button = QPushButton("只显示未完成课程")
+        self.filter_button.setStyleSheet(
+            """
+            QPushButton {
+                background-color: #f0f0f0;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                padding: 5px 15px;
+                color: #333;
+            }
+            QPushButton:hover {
+                background-color: #e0e0e0;
+            }
+        """
+        )
         self.filter_button.setCheckable(True)
         self.filter_button.clicked.connect(self._toggle_filter)
         self.filter_button.setStyleSheet(
@@ -376,6 +423,7 @@ class AutoWatchPage(QWidget):
                 border: 1px solid #ccc;
                 border-radius: 4px;
                 padding: 5px 15px;
+                color: #333;
             }
             QPushButton:checked {
                 background-color: #e0e0e0;
@@ -432,9 +480,25 @@ class AutoWatchPage(QWidget):
         # 进度信息
         progress_info_layout = QHBoxLayout()
         self.progress_label = QLabel("正在处理任务...")
+        self.progress_label.setStyleSheet(
+            """
+            QLabel {
+                font-weight: bold;
+                color: #333333;
+            }
+        """
+        )
         progress_info_layout.addWidget(self.progress_label)
         
         self.progress_detail = QLabel("0/0")
+        self.progress_detail.setStyleSheet(
+            """
+            QLabel {
+                color: #666666;
+                font-style: italic;
+            }
+        """
+        )
         self.progress_detail.setAlignment(Qt.AlignRight)
         progress_info_layout.addWidget(self.progress_detail)
         
@@ -450,6 +514,19 @@ class AutoWatchPage(QWidget):
         cancel_btn_layout = QHBoxLayout()
         cancel_btn_layout.addStretch()
         self.cancel_button = QPushButton("取消")
+        self.cancel_button.setStyleSheet(
+            """
+            QPushButton {
+                background-color: #f44336;
+                color: white;
+                border-radius: 4px;
+                padding: 5px 15px;
+            }
+            QPushButton:hover {
+                background-color: #e53935;
+            }
+        """
+        )
         self.cancel_button.clicked.connect(self._cancel_processing)
         cancel_btn_layout.addWidget(self.cancel_button)
         status_layout.addLayout(cancel_btn_layout)
@@ -496,12 +573,12 @@ class AutoWatchPage(QWidget):
         
     @Slot()
     def _cancel_processing(self):
-        """取消任务处理"""
+        """取消任务处理"""        
         if self.processing_thread and self.processing_thread.isRunning():
             self.processing_thread.stop()
             self.processing_thread = None
             self.status_widget.setVisible(False)
-            QMessageBox.information(self, "操作取消", "任务处理已取消")
+            MessageBox.information(self, "操作取消", "任务处理已取消")
             self._refresh_tasks()  # 刷新任务列表以更新状态
 
     def _refresh(self):
@@ -537,13 +614,12 @@ class AutoWatchPage(QWidget):
                 group, show_all_tasks=self.show_all_courses
             )
             self.content_layout.addWidget(course_widget)
-
     @Slot()
     def _complete_selected_tasks(self):
         """完成选中的任务"""
         # 检查是否有登录管理器
         if not self.login_manager:
-            QMessageBox.warning(self, "错误", "请先登录")
+            MessageBox.warning(self, "错误", "请先登录")
             return
             
         # 查找所有选中的任务
@@ -557,31 +633,27 @@ class AutoWatchPage(QWidget):
                     if isinstance(item, TaskCard):
                         radio = item.findChild(QRadioButton)
                         if radio and radio.isChecked():
-                            selected_tasks.append(item.task)
-
-        # 如果没有选中任务，显示提示
+                            selected_tasks.append(item.task)        # 如果没有选中任务，显示提示
         if not selected_tasks:
-            QMessageBox.information(self, "提示", "请先选择需要完成的任务")
+            MessageBox.information(self, "提示", "请先选择需要完成的任务")
             return
 
         # 确认操作
-        reply = QMessageBox.question(
+        reply = MessageBox.question(
             self,
             "确认操作",
             f"确定要完成选中的 {len(selected_tasks)} 个任务吗？",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
+            buttons=QMessageBox.Yes | QMessageBox.No,
+            default_button=QMessageBox.No
         )
         
         if reply == QMessageBox.Yes:
-            self._process_tasks(selected_tasks)
-
-    @Slot()
+            self._process_tasks(selected_tasks)    @Slot()
     def _complete_all_tasks(self):
         """完成所有任务"""
         # 检查是否有登录管理器
         if not self.login_manager:
-            QMessageBox.warning(self, "错误", "请先登录")
+            MessageBox.warning(self, "错误", "请先登录")
             return
             
         # 收集所有未完成的任务
@@ -590,21 +662,20 @@ class AutoWatchPage(QWidget):
             task_manager = group.get_task_manager()
             for task in task_manager.task_list:
                 if not task.is_finished():
-                    all_tasks.append(task)
-
-        # 如果没有未完成的任务，显示提示
+                    all_tasks.append(task)        # 如果没有未完成的任务，显示提示
         if not all_tasks:
-            QMessageBox.information(self, "提示", "没有未完成的任务")
+            MessageBox.information(self, "提示", "没有未完成的任务")
             return
 
         # 确认操作
-        reply = QMessageBox.question(
+        reply = MessageBox.question(
             self,
             "确认操作",
             f"确定要完成所有 {len(all_tasks)} 个未完成的任务吗？",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
+            buttons=QMessageBox.Yes | QMessageBox.No,
+            default_button=QMessageBox.No
         )
+
         
         if reply == QMessageBox.Yes:
             self._process_tasks(all_tasks)
@@ -645,13 +716,14 @@ class AutoWatchPage(QWidget):
         status = "成功" if success else "失败"
         task_name = task.get_name() or task.get_task_id()
         self.progress_label.setText(f"完成任务: {task_name} ({status})")
-             
+
     @Slot()
     def _on_all_tasks_completed(self):
         """所有任务完成回调"""
         self.processing_thread = None
         self.status_widget.setVisible(False)
-        QMessageBox.information(self, "完成", "所有任务处理完成！")
+        MessageBox.information(self, "完成", "所有任务处理完成！")
+        
         self._refresh()  # 强刷新任务列表以更新状态
         
     @Slot(str)
@@ -659,7 +731,7 @@ class AutoWatchPage(QWidget):
         """错误处理回调"""
         self.processing_thread = None
         self.status_widget.setVisible(False)
-        QMessageBox.warning(self, "错误", error_msg)
+        MessageBox.warning(self, "错误", error_msg)
         self._refresh()  # 强刷新任务列表
 
     def update_group_manager(self, group_manager):

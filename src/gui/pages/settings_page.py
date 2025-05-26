@@ -65,6 +65,7 @@ class SettingsPage(QWidget):
                 border: none;
                 padding: 10px;
                 font-size: 16px;
+                color: #111827;
             }
             QPushButton:hover {
                 background-color: #E5E7EB;
@@ -81,6 +82,7 @@ class SettingsPage(QWidget):
                 border: none;
                 padding: 10px;
                 font-size: 16px;
+                color: #111827;
             }
             QPushButton:hover {
                 background-color: #E5E7EB;
@@ -97,6 +99,7 @@ class SettingsPage(QWidget):
                 border: none;
                 padding: 10px;
                 font-size: 16px;
+                color: #111827;
             }
             QPushButton:hover {
                 background-color: #E5E7EB;

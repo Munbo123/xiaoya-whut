@@ -2,6 +2,7 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QHBoxLayout, QPushBu
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QPixmap, QFont
 import qtawesome as qta
+import webbrowser
 
 class AboutPage(QWidget):
     """关于页面"""
@@ -22,6 +23,7 @@ class AboutPage(QWidget):
         self.app_icon.setAlignment(Qt.AlignCenter)
         
         self.app_name = QLabel("小雅平台助手")
+        self.app_name.setStyleSheet("color: #333;")
         self.app_name.setFont(QFont("微软雅黑", 16, QFont.Bold))
         self.app_name.setAlignment(Qt.AlignCenter)
         
@@ -73,6 +75,8 @@ class AboutPage(QWidget):
             }
         """)
         self.github_btn.setFixedWidth(150)
+        # 点击打开GitHub链接
+        self.github_btn.clicked.connect(lambda: webbrowser.open("https://github.com/Munbo123/xiaoya-whut"))
         
         github_layout = QHBoxLayout()
         github_layout.addStretch()
