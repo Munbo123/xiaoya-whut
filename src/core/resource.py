@@ -150,6 +150,10 @@ class Resource:
         """获取资源类型"""
         return self.resource_type
     
+    def get_type(self) -> int:
+        """获取类型"""
+        return self.type
+    
     def get_creator(self) -> str:
         """获取创建者ID"""
         return self.creator

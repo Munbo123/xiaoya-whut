@@ -73,6 +73,14 @@ class ResourceFolderItem(QWidget):
         self.toggle_btn.clicked.connect(self._on_toggle_clicked)
         layout.addWidget(self.toggle_btn)
         
+        self.icon_label = QLabel()
+        self.icon_label.setFixedSize(24, 24)
+        # 由于是文件夹，使用文件夹图标
+        folder_icon = QIcon(qta.icon('fa5s.folder', color='#666'))
+        self.icon_label.setPixmap(folder_icon.pixmap(20, 20))
+        layout.addWidget(self.icon_label)
+
+
         # 文件夹名称
         self.name_label = QLabel(self.resource.get_name())
         self.name_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
@@ -84,7 +92,6 @@ class ResourceFolderItem(QWidget):
         # 设置整体样式
         self.setStyleSheet("""
             QWidget {
-                background: white;
                 border-radius: 4px;
             }
             QWidget:hover {

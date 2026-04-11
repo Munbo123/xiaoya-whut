@@ -37,8 +37,8 @@ class ResourceTree:
         """
         resources_data.sort(key=lambda x:x['path'].split('/'))  # 按照path排序，确保父节点在子节点之前
         for resource_data in resources_data:
-            resource_type = resource_data.get('resource_type', -1)
-            if resource_type == 0:  # 文件夹
+            resource_type = resource_data.get('type', -1)
+            if resource_type == 1:  # 文件夹
                 folder = ResourceFolder(resource_data)
                 if self.root is None:
                     # 第一个必定是只有一个路径的root文件夹

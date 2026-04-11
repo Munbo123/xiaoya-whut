@@ -39,25 +39,52 @@ class GeneralPage(QWidget):
         general_layout.setContentsMargins(0, 0, 0, 0)
         general_layout.setSpacing(10)
         
+
+        # 初始化下载路径设置项
+        self.download_path_item = self.init_download_path_item()
+        general_layout.addWidget(self.download_path_item)
+
+        # 初始化最大线程数设置项
+        self.threading_num_item = self.init_threading_num_item()
+        general_layout.addWidget(self.threading_num_item)
+
+        general_layout.addStretch()
+        layout.addLayout(general_layout)
+        layout.addStretch()
+
+    def init_threading_num_item(self):
+        '''初始化最大线程数设置项'''
+        threading_num_item = SettingItem(
+            name="最大线程数",
+            icon=qta.icon('fa5s.cogs', color='black'),
+            description="设置下载时的最大线程数",
+            value='4',  # 默认值
+            value_type=QComboBox,
+            options=[str(i) for i in range(1, 10)]  # 线程数范围1-16
+        )
+        threading_num_item.valueChanged.connect(self._on_threading_num_changed)
+        return threading_num_item
+  
+    def _on_threading_num_changed(self):
+        '''处理最大线程数变化，内部控件选择时已经达到了效果，不需要额外处理'''
+        pass
+
+    def init_download_path_item(self):
         # 获取桌面路径作为默认下载路径
         default_path = os.path.join(os.path.expanduser("~"), "Desktop")
         
         # 下载路径设置项
-        self.download_path_item = SettingItem(
+        download_path_item = SettingItem(
             name="下载路径",
             icon=qta.icon('fa5s.folder', color='black'),
             description="设置下载文件的保存路径",
             value=default_path,
             value_type=QPushButton
         )
-        self.download_path_item.valueChanged.connect(self._on_select_download_path)
-        general_layout.addWidget(self.download_path_item)
+        download_path_item.valueChanged.connect(self._on_select_download_path)
+        return download_path_item
 
-        general_layout.addStretch()
-        layout.addLayout(general_layout)
-        layout.addStretch()
-
-    def _on_select_download_path(self, _):
+    def _on_select_download_path(self):
         """处理下载路径选择"""
         # 打开文件夹选择对话框，使用当前路径作为默认目录
         folder_path = QFileDialog.getExistingDirectory(
@@ -71,5 +98,10 @@ class GeneralPage(QWidget):
             # 更新设置项的值
             self.download_path_item.set_value(folder_path)
 
-
+    def get_all_settings(self):
+        """获取所有设置项的值"""
+        return {
+            "download_path": self.download_path_item.get_value(),
+            "threading_num": self.threading_num_item.get_value()
+        }
 

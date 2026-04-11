@@ -100,7 +100,7 @@ class ResourceDownloadPage(QWidget):
         button_layout.addSpacing(10)
         
         # 全部下载按钮
-        self.download_all_btn = QPushButton("全部下载")
+        self.download_all_btn = QPushButton("下载所有选中文件")
         self.download_all_btn.setFixedSize(100, 32)
         self.download_all_btn.setStyleSheet("""
             QPushButton {
@@ -148,6 +148,7 @@ class ResourceDownloadPage(QWidget):
         
         # 初始化资源树显示
         self._initialize_resource_tree()
+
         
     def _initialize_resource_tree(self):
         """初始化资源树显示"""
@@ -181,10 +182,17 @@ class ResourceDownloadPage(QWidget):
         for resource in root.get_all_resources():
             self._add_resource_widget(resource)
         
+        # 在添加完所有的组件后，添加一个伸展因子
+        self.content_layout.addStretch(1)
+        
     def _add_reource_folder_widget(self, folder: ResourceFolder, indent_level: int = 0):
         '''添加资源文件夹组件'''
         # 创建文件夹组件
-        widget = ResourceFolderItem(folder,is_selected=folder.get_is_selected(),expanded=folder.get_is_expanded())
+        widget = ResourceFolderItem(
+            folder,
+            is_selected=folder.get_is_selected(),
+            expanded=folder.get_is_expanded()
+        )
         widget.toggle.connect(self._on_folder_toggle)
         widget.selected.connect(self._on_folder_selected)
         # 设置缩进

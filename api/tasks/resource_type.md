@@ -1,5 +1,5 @@
 resource_type:（即使未布置成任务也有）
-0:未布置的任务或者文件夹
+0:未布置的任务或者文件夹,exe可执行文件,rar压缩文件等
 1:pdf
 2:ppt/pptx
 3:doc/docx
