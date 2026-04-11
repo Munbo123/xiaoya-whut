@@ -1,6 +1,15 @@
+# python
 /.venv/
 **/__pycache__/
 /dist/
 **/test*.py
 /test/
+
+# IDE files
 /.vscode/
+.idea
+
+# OS files
+.DS_Store
+Thumbs.db
+
