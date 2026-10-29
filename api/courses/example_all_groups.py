@@ -35,7 +35,7 @@ Returns:
         'public_type': '3',
         'public_type_name': '校内',
         'role': 1,
-        'school_id': 'f8d0cbf5d0d5aed8d698612d4212b7a9',
+        'school_id': '<your-school-id>',
         'school_name': '武汉理工大学',
         'site_id': '30ec5d7490814d9296b1a062844df9aa',
         'site_name': '初级羽毛球',

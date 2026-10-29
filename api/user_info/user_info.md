@@ -2,6 +2,10 @@
 
 本文档描述了小雅平台获取用户信息相关的 API 接口。
 
+所有响应示例均用于说明字段结构，用户、学校、院系和头像标识使用占位符，不能直接作为登录配置使用。`school_id` 是学校标识，不是登录 token。
+
+登录自己的小雅账号后，可在浏览器开发者工具的 Network（网络）面板查看 `currentUserInfo` 请求的响应，从 `result.schoolInfo.id` 获取自己的学校 ID，对应课程响应的 `school_id`。不要复制其他人的标识或公开完整响应、Cookie 和 Authorization 请求头。
+
 ## 用户基本信息
 
 ### 1. 获取用户 OAuth2 信息
@@ -35,12 +39,12 @@ Authorization: Bearer {access_token}
     "access_token_expires_in": "2025-05-06T19:49:09.785Z",
     "refresh_token_expires_in": "2025-05-07T08:49:09.785Z",
     "info": {
-      "id": "6248753284220235292",
+      "id": "<your-user-id>",
       "username": "张三",
-      "mobile": "13800138000",
+      "mobile": "<your-mobile>",
       "email": "",
       "nickname": "",
-      "avatar": "/cloud/file_access/6077049458644752007",
+      "avatar": "/cloud/file_access/<your-avatar-file-id>",
       "gender": 0,
       "roles": ["user"]
     }
@@ -71,22 +75,22 @@ Authorization: Bearer {access_token}
   "code": 200,
   "msg": "操作成功。",
   "result": {
-    "id": "88e1ca94320e078a98165fe88354ca3a",
+    "id": "<your-account-id>",
     "realname": "张三",
     "nickname": "张三",
     "sex": "男",
-    "headImageUrl": "/cloud/file_access/6077049458644752007",
-    "authorId": "6248753284220235292",
+    "headImageUrl": "/cloud/file_access/<your-avatar-file-id>",
+    "authorId": "<your-user-id>",
     "roleDepartmentList": [
       {
-        "id": "49cd631e5f1f4242a58ae102da3b4e7a",
+        "id": "<your-department-id>",
         "className": "计算机2202",
         "departmentName": "计算机智能学院",
         "majorName": "计算机"
       }
     ],
     "schoolInfo": {
-      "id": "f8d0cbf5d0d5aed8d698612d4212b7a9",
+      "id": "<your-school-id>",
       "schoolName": "武汉理工大学",
       "schoolLogo": "https://aia-publication.oss-cn-shanghai.aliyuncs.com/oss-ccnu/jw/8963db2b7292478e84d16ce4226e9d8e.png"
     }

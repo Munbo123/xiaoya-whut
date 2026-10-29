@@ -1,8 +1,13 @@
+import os
 import requests
 
 # 请求头，带authority
+access_token = os.environ.get("XIAOYA_ACCESS_TOKEN", "").strip()
+if not access_token:
+    raise SystemExit("Set XIAOYA_ACCESS_TOKEN before running this example.")
+
 headers = {
-    'authorization':'Bearer 81b816cea271486be310a20074c1'
+    'authorization': f'Bearer {access_token}'
 }
 
 # 课程id
